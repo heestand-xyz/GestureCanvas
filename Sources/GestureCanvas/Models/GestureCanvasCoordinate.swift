@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreGraphicsExtensions
 
 public struct GestureCanvasCoordinate: Equatable {
     
@@ -14,4 +15,17 @@ public struct GestureCanvasCoordinate: Equatable {
 extension GestureCanvasCoordinate {
     
     public static let zero = GestureCanvasCoordinate(offset: .zero, scale: 1.0)
+}
+
+extension GestureCanvasCoordinate {
+    
+    /// Converts from screen space to content space
+    public func position(at location: CGPoint) -> CGPoint {
+        (location - offset) / scale
+    }
+    
+    /// Converts from content space to screen space
+    public func location(at position: CGPoint) -> CGPoint {
+        position * scale + offset
+    }
 }

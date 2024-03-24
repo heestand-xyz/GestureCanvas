@@ -21,7 +21,7 @@ struct GestureCanvasGestureView: View {
                     .onChanged { value in
                         if startCoordinate == nil {
 #if os(macOS)
-                            canvas.dragSelectionStarted(at: value.location)
+                            canvas.dragSelectionStarted(at: value.startLocation)
 #else
                             startCoordinate = canvas.coordinate
 #endif

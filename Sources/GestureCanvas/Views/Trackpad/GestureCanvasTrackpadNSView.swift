@@ -145,7 +145,7 @@ public class GestureCanvasTrackpadNSView: NSView {
         if canvas.keyboardFlags.contains(.command) || withScrollWheel {
             let magnification: CGFloat = 1.0 + velocity.dy * Self.zoomScrollVelocityMultiplier
             
-            var scale: CGFloat = startCoordinate.scale * magnification
+            var scale: CGFloat = canvas.coordinate.scale * magnification
             scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
             canvas.coordinate.scale = scale
             let offsetMagnification: CGFloat = scale / startCoordinate.scale

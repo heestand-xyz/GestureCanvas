@@ -1,15 +1,20 @@
 import Observation
+import Combine
 import CoreGraphics
 import CoreGraphicsExtensions
 
 public protocol GestureCanvasDelegate: AnyObject {
     
+    func gestureCanvasChanged(coordinate: GestureCanvasCoordinate)
+    
     func gestureCanvasBackgroundTap(at location: CGPoint)
     func gestureCanvasBackgroundDoubleTap(at location: CGPoint)
     
+#if os(macOS)
     func gestureCanvasDragSelectionStarted(at location: CGPoint)
     func gestureCanvasDragSelectionUpdated(at location: CGPoint)
     func gestureCanvasDragSelectionEnded(at location: CGPoint)
+#endif
 }
 
 @Observable
@@ -18,7 +23,11 @@ public final class GestureCanvas {
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
     
-    public var coordinate: GestureCanvasCoordinate = .zero
+    public var coordinate: GestureCanvasCoordinate = .zero {
+        didSet {
+            delegate?.gestureCanvasChanged(coordinate: coordinate)
+        }
+    }
     
     @ObservationIgnored
     public var minimumScale: CGFloat = 0.25
@@ -50,6 +59,8 @@ extension GestureCanvas {
     }
 }
 
+#if os(macOS)
+
 extension GestureCanvas {
  
     func dragSelectionStarted(at location: CGPoint) {
@@ -64,3 +75,5 @@ extension GestureCanvas {
         delegate?.gestureCanvasDragSelectionEnded(at: location)
     }
 }
+
+#endif
