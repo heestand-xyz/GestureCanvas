@@ -29,3 +29,22 @@ extension GestureCanvasCoordinate {
         position * scale + offset
     }
 }
+
+extension GestureCanvasCoordinate {
+    
+    /// Converts from screen space to content space
+    public func positionFrame(from locationFrame: CGRect) -> CGRect {
+        CGRect(
+            origin: (locationFrame.origin - offset) / scale,
+            size: locationFrame.size / scale
+        )
+    }
+    
+    /// Converts from content space to screen space
+    public func locationFrame(from positionFrame: CGRect) -> CGRect {
+        CGRect(
+            origin: positionFrame.origin * scale + offset,
+            size: positionFrame.size * scale
+        )
+    }
+}

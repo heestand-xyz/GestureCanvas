@@ -18,18 +18,6 @@ public struct GestureCanvasView<FG: View, BG: View>: View {
     public var body: some View {
         ZStack(alignment: .topLeading) {
             background()
-                .gesture(
-                    SpatialTapGesture(count: 2)
-                        .onEnded { value in
-                            canvas.backgroundDoubleTap(at: value.location)
-                        }
-                )
-                .gesture(
-                    SpatialTapGesture(count: 1)
-                        .onEnded { value in
-                            canvas.backgroundTap(at: value.location)
-                        }
-                )
 #if os(macOS)
             GestureCanvasTrackpadView(canvas: canvas) {
                 ZStack(alignment: .topLeading) {

@@ -16,15 +16,26 @@ struct GestureCanvasGestureView: View {
     
     var body: some View {
         Color.gray.opacity(0.001)
+            .gesture(
+                SpatialTapGesture(count: 2)
+                    .onEnded { value in
+                        canvas.backgroundDoubleTap(at: value.location)
+                    }
+            )
+            .gesture(
+                SpatialTapGesture(count: 1)
+                    .onEnded { value in
+                        canvas.backgroundTap(at: value.location)
+                    }
+            )
             .simultaneousGesture(
                 DragGesture()
                     .onChanged { value in
                         if startCoordinate == nil {
 #if os(macOS)
                             canvas.dragSelectionStarted(at: value.startLocation)
-#else
-                            startCoordinate = canvas.coordinate
 #endif
+                            startCoordinate = canvas.coordinate
                         }
 #if os(macOS)
                         canvas.dragSelectionUpdated(at: value.location)
@@ -35,9 +46,8 @@ struct GestureCanvasGestureView: View {
                     .onEnded { value in
 #if os(macOS)
                         canvas.dragSelectionEnded(at: value.location)
-#else
-                        startCoordinate = nil
 #endif
+                        startCoordinate = nil
                     }
             )
             .gesture(
