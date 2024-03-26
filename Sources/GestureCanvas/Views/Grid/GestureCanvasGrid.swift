@@ -42,6 +42,7 @@ public struct GestureCanvasGrid: View {
                 }
             }
         }
+        .drawingGroup()
     }
     
     private func grid(
