@@ -24,6 +24,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     private let contentView: NSView?
     
     private var startCoordinate: GestureCanvasCoordinate?
+    private var magnification: CGFloat?
     
     public init(canvas: GestureCanvas,
                 contentView: NSView?) {
@@ -49,16 +50,8 @@ public class GestureCanvasTrackpadNSView: NSView {
             self?.flagsChanged(with: $0)
             return $0
         }
-        NSEvent.addLocalMonitorForEvents(matching: .leftMouseUp) { [weak self] in
-            self?.mouseUp(with: $0)
-            return $0
-        }
         NSEvent.addLocalMonitorForEvents(matching: .magnify) { [weak self] in
             self?.magnify(with: $0)
-            return $0
-        }
-        NSEvent.addLocalMonitorForEvents(matching: .rotate) { [weak self] in
-            self?.rotate(with: $0)
             return $0
         }
         
@@ -144,7 +137,6 @@ public class GestureCanvasTrackpadNSView: NSView {
         
         if canvas.keyboardFlags.contains(.command) || withScrollWheel {
             let magnification: CGFloat = 1.0 + velocity.dy * Self.zoomScrollVelocityMultiplier
-            
             var scale: CGFloat = canvas.coordinate.scale * magnification
             scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
             canvas.coordinate.scale = scale
@@ -158,6 +150,34 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     func didEndScroll() {
         startCoordinate = nil
+    }
+    
+    // MARK: - Magnify
+    
+    public override func magnify(with event: NSEvent) {
+        guard canvas.trackpadEnabled else { return }
+        guard let mouseLocation: CGPoint = getMouseLocation() else { return }
+        guard bounds.contains(mouseLocation) else { return }
+        switch event.phase {
+        case .began:
+            startCoordinate = canvas.coordinate
+            magnification = 1.0
+        case .changed:
+            guard let startCoordinate else { return }
+            guard var magnification else { return }
+            magnification += event.magnification
+            var scale: CGFloat = startCoordinate.scale * magnification
+            scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
+            canvas.coordinate.scale = scale
+            let finalMagnification: CGFloat = scale / startCoordinate.scale
+            canvas.coordinate.offset = (startCoordinate.offset - mouseLocation) * finalMagnification + mouseLocation
+            self.magnification = magnification
+        case .ended, .cancelled:
+            startCoordinate = nil
+            magnification = nil
+        default:
+            break
+        }
     }
     
     // MARK: - Flags

@@ -50,6 +50,7 @@ struct GestureCanvasGestureView: View {
                         startCoordinate = nil
                     }
             )
+#if !os(macOS)
             .gesture(
                 MagnifyGesture()
                     .onChanged { value in
@@ -66,5 +67,6 @@ struct GestureCanvasGestureView: View {
                         startCoordinate = nil
                     }
             )
+#endif
     }
 }
