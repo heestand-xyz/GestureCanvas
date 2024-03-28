@@ -1,5 +1,5 @@
 //
-//  CanvasPathGrid.swift
+//  GestureCanvasPathGrid.swift
 //  CanvasDemo
 //
 //  Created by Anton Heestand on 2021-03-01.
@@ -8,7 +8,7 @@
 import SwiftUI
 import CoreGraphicsExtensions
 
-public struct GestureCanvasGrid: View {
+public struct GestureCanvasPathGrid: View {
     
     private let size: CGFloat
     private let style: GestureCanvasGridStyle
@@ -29,41 +29,41 @@ public struct GestureCanvasGrid: View {
     }
     
     public var body: some View {
-        Canvas { context, size in
+        ZStack {
             switch style {
             case .one:
-                grid(at: 1.0, in: &context, size: size)
+                grid(at: 1.0)
             case .fractions(let fractions):
-                for fraction in fractions {
+                ForEach(fractions, id: \.self) { fraction in
                     if coordinate.scale > (0.25 / fraction) {
-                        let opacity = Double((coordinate.scale - (0.25 / fraction)) * fraction)
-                        grid(at: fraction, opacity: opacity, in: &context, size: size)
+                        grid(at: fraction)
+                            .opacity(Double((coordinate.scale - (0.25 / fraction)) * fraction))
                     }
                 }
             }
         }
+        .drawingGroup()
     }
     
     private func grid(
         at superScale: CGFloat,
-        lineWidth: CGFloat = .pointsPerPixel,
-        opacity: Double = 1.0,
-        in context: inout GraphicsContext,
-        size: CGSize
-    ) {
-        let path = Path { path in
-            for x in 0...xCount(size: size, at: superScale) {
-                let offset: CGFloat = coordinate.offset.x.truncatingRemainder(dividingBy: spacing * superScale) + CGFloat(x) * spacing * superScale
-                path.move(to: CGPoint(x: offset, y: 0.0))
-                path.addLine(to: CGPoint(x: offset, y: size.height))
+        lineWidth: CGFloat = .pointsPerPixel
+    ) -> some View {
+        GeometryReader { geo in
+            Path { path in
+                for x in 0...xCount(size: geo.size, at: superScale) {
+                    let offset: CGFloat = coordinate.offset.x.truncatingRemainder(dividingBy: spacing * superScale) + CGFloat(x) * spacing * superScale
+                    path.move(to: CGPoint(x: offset, y: 0.0))
+                    path.addLine(to: CGPoint(x: offset, y: geo.size.height))
+                }
+                for y in 0...yCount(size: geo.size, at: superScale) {
+                    let offset: CGFloat = coordinate.offset.y.truncatingRemainder(dividingBy: spacing * superScale) + CGFloat(y) * spacing * superScale
+                    path.move(to: CGPoint(x: 0.0, y: offset))
+                    path.addLine(to: CGPoint(x: geo.size.width, y: offset))
+                }
             }
-            for y in 0...yCount(size: size, at: superScale) {
-                let offset: CGFloat = coordinate.offset.y.truncatingRemainder(dividingBy: spacing * superScale) + CGFloat(y) * spacing * superScale
-                path.move(to: CGPoint(x: 0.0, y: offset))
-                path.addLine(to: CGPoint(x: size.width, y: offset))
-            }
+            .stroke()
         }
-        context.stroke(path, with: .color(.primary.opacity(opacity)))
     }
     
     private func xCount(
