@@ -2,7 +2,7 @@
 //  CanvasGestureView.swift
 //  Space Flow
 //
-//  Created by Heestand, Anton Norman | Anton | GSSD on 2024-03-20.
+//  Created by Anton Heestand on 2024-03-20.
 //
 
 import SwiftUI
