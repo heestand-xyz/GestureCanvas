@@ -20,6 +20,7 @@ public struct GestureCanvasGestureView: View {
     
     public var body: some View {
         Color.gray.opacity(0.001)
+            .coordinateSpace(GestureCanvasCoordinate.space)
             .gesture(
                 SpatialTapGesture(count: 2)
                     .onEnded { value in

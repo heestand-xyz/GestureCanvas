@@ -1,7 +1,10 @@
 import CoreGraphics
+import SwiftUI
 import CoreGraphicsExtensions
 
 public struct GestureCanvasCoordinate: Equatable {
+    
+    public static let space: NamedCoordinateSpace = .named("gesture-canvas-coordinate-space")
     
     public var offset: CGPoint
     public var scale: CGFloat
