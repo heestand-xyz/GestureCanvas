@@ -8,13 +8,17 @@
 import SwiftUI
 import CoreGraphicsExtensions
 
-struct GestureCanvasGestureView: View {
+public struct GestureCanvasGestureView: View {
     
     @Bindable var canvas: GestureCanvas
     
     @State private var startCoordinate: GestureCanvasCoordinate?
     
-    var body: some View {
+    public init(canvas: GestureCanvas) {
+        self.canvas = canvas
+    }
+    
+    public var body: some View {
         Color.gray.opacity(0.001)
             .gesture(
                 SpatialTapGesture(count: 2)

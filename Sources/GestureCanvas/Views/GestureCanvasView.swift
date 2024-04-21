@@ -21,14 +21,23 @@ public struct GestureCanvasView<FG: View, BG: View>: View {
 #if os(macOS)
             GestureCanvasTrackpadView(canvas: canvas) {
                 ZStack(alignment: .topLeading) {
-                    GestureCanvasGestureView(canvas: canvas)
                     foreground()
                 }
             }
 #else
-            GestureCanvasGestureView(canvas: canvas)
             foreground()
 #endif
+        }
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear {
+                        canvas.size = geometry.size
+                    }
+                    .onChange(of: geometry.size) { _, newSize in
+                        canvas.size = newSize
+                    }
+            }
         }
     }
 }

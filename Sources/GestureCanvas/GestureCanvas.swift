@@ -34,6 +34,8 @@ public final class GestureCanvas {
     @ObservationIgnored
     public var maximumScale: CGFloat = 4.0
     
+    public internal(set) var size: CGSize = .one
+    
 #if os(macOS)
     @ObservationIgnored
     public var trackpadEnabled: Bool = true
@@ -49,11 +51,34 @@ public final class GestureCanvas {
 }
 
 extension GestureCanvas {
- 
+    
+    public func coordinate(in frame: CGRect, padding: CGFloat = 0.0) -> GestureCanvasCoordinate {
+        let targetScale: CGFloat = min(
+            size.width / frame.width,
+            size.height / frame.height
+        )
+        let targetFrame: CGRect = CGRect(
+            origin: frame.origin - padding * targetScale,
+            size: frame.size + (padding * 2) * targetScale
+        )
+        let fitScale: CGFloat = min(
+            size.width / targetFrame.width,
+            size.height / targetFrame.height
+        )
+        let fitOffset: CGPoint = size / 2 - targetFrame.center * fitScale
+        return GestureCanvasCoordinate(
+            offset: fitOffset,
+            scale: fitScale
+        )
+    }
+}
+
+extension GestureCanvas {
+    
     func backgroundTap(at location: CGPoint) {
         delegate?.gestureCanvasBackgroundTap(at: location)
     }
- 
+    
     func backgroundDoubleTap(at location: CGPoint) {
         delegate?.gestureCanvasBackgroundDoubleTap(at: location)
     }
