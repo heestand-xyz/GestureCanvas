@@ -1,6 +1,6 @@
 //
 //  CanvasGestureView.swift
-//  Space Flow
+//  Flow App
 //
 //  Created by Anton Heestand on 2024-03-20.
 //
