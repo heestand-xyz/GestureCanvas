@@ -5,15 +5,15 @@ import CoreGraphicsExtensions
 
 public protocol GestureCanvasDelegate: AnyObject {
     
-    func gestureCanvasChanged(coordinate: GestureCanvasCoordinate)
+    func gestureCanvasChanged(_ canvas: GestureCanvas, coordinate: GestureCanvasCoordinate)
     
-    func gestureCanvasBackgroundTap(at location: CGPoint)
-    func gestureCanvasBackgroundDoubleTap(at location: CGPoint)
+    func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
     
 #if os(macOS)
-    func gestureCanvasDragSelectionStarted(at location: CGPoint)
-    func gestureCanvasDragSelectionUpdated(at location: CGPoint)
-    func gestureCanvasDragSelectionEnded(at location: CGPoint)
+    func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDragSelectionUpdated(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDragSelectionEnded(_ canvas: GestureCanvas, at location: CGPoint)
 #endif
 }
 
@@ -25,7 +25,7 @@ public final class GestureCanvas {
     
     public var coordinate: GestureCanvasCoordinate = .zero {
         didSet {
-            delegate?.gestureCanvasChanged(coordinate: coordinate)
+            delegate?.gestureCanvasChanged(self, coordinate: coordinate)
         }
     }
     
@@ -76,11 +76,11 @@ extension GestureCanvas {
 extension GestureCanvas {
     
     func backgroundTap(at location: CGPoint) {
-        delegate?.gestureCanvasBackgroundTap(at: location)
+        delegate?.gestureCanvasBackgroundTap(self, at: location)
     }
     
     func backgroundDoubleTap(at location: CGPoint) {
-        delegate?.gestureCanvasBackgroundDoubleTap(at: location)
+        delegate?.gestureCanvasBackgroundDoubleTap(self, at: location)
     }
 }
 
@@ -89,15 +89,15 @@ extension GestureCanvas {
 extension GestureCanvas {
  
     func dragSelectionStarted(at location: CGPoint) {
-        delegate?.gestureCanvasDragSelectionStarted(at: location)
+        delegate?.gestureCanvasDragSelectionStarted(self, at: location)
     }
  
     func dragSelectionUpdated(at location: CGPoint) {
-        delegate?.gestureCanvasDragSelectionUpdated(at: location)
+        delegate?.gestureCanvasDragSelectionUpdated(self, at: location)
     }
  
     func dragSelectionEnded(at location: CGPoint) {
-        delegate?.gestureCanvasDragSelectionEnded(at: location)
+        delegate?.gestureCanvasDragSelectionEnded(self, at: location)
     }
 }
 
