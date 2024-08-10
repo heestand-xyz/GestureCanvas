@@ -14,6 +14,8 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionUpdated(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionEnded(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasScrollStarted(_ canvas: GestureCanvas)
+    func gestureCanvasScrollEnded(_ canvas: GestureCanvas)
 #endif
 }
 
@@ -42,6 +44,15 @@ public final class GestureCanvas {
     @ObservationIgnored
     public internal(set) var mouseLocation: CGPoint?
     public internal(set) var keyboardFlags: Set<GestureCanvasKeyboardFlag> = []
+    public internal(set) var isScrolling: Bool = false {
+        didSet {
+            if isScrolling {
+                delegate?.gestureCanvasScrollStarted(self)
+            } else {
+                delegate?.gestureCanvasScrollEnded(self)
+            }
+        }
+    }
 #endif
     
     @ObservationIgnored

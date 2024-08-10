@@ -124,6 +124,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     func didStartScroll() {
         startCoordinate = canvas.coordinate
+        canvas.isScrolling = true
     }
     
     func didScroll(by velocity: CGVector, _ withScrollWheel: Bool) {
@@ -150,6 +151,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     func didEndScroll() {
         startCoordinate = nil
+        canvas.isScrolling = false
     }
     
     // MARK: - Magnify
