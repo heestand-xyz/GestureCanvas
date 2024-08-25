@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import Combine
 import CoreGraphics
@@ -38,7 +39,9 @@ public final class GestureCanvas {
     
     public internal(set) var size: CGSize = .one
     
+    
 #if os(macOS)
+    public private(set) var refreshID = UUID()
     @ObservationIgnored
     public var trackpadEnabled: Bool = true
     @ObservationIgnored
@@ -61,16 +64,21 @@ public final class GestureCanvas {
     public init() {}
 }
 
+#if os(macOS)
+extension GestureCanvas {
+    @MainActor
+    public func refresh() {
+        refreshID = UUID()
+    }
+}
+#endif
+
 extension GestureCanvas {
     
     public func coordinate(in frame: CGRect, padding: CGFloat = 0.0) -> GestureCanvasCoordinate {
-        let targetScale: CGFloat = min(
-            size.width / frame.width,
-            size.height / frame.height
-        )
         let targetFrame: CGRect = CGRect(
-            origin: frame.origin - padding * targetScale,
-            size: frame.size + (padding * 2) * targetScale
+            origin: frame.origin - padding,
+            size: frame.size + (padding * 2)
         )
         let fitScale: CGFloat = min(
             size.width / targetFrame.width,
