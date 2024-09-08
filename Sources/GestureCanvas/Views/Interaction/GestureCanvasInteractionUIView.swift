@@ -68,7 +68,9 @@ final class GestureCanvasInteractionUIView: UIView {
     }
     
     @objc private func didLongPress(_ recognizer: UIGestureRecognizer) {
+        guard recognizer.state == .ended else { return }
         let location: CGPoint = recognizer.location(in: contentView)
+        canvas.lastInteractionLocation = location
         let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: location)
         interaction?.presentEditMenu(with: configuration)
     }

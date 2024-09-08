@@ -59,6 +59,9 @@ public final class GestureCanvas {
             }
         }
     }
+#else
+    @ObservationIgnored
+    public internal(set) var lastInteractionLocation: CGPoint?
 #endif
     
     @ObservationIgnored
@@ -104,6 +107,10 @@ extension GestureCanvas {
     
     public func addLongPress(delegate: UIEditMenuInteractionDelegate) {
         interactionSetup.send(delegate)
+    }
+    
+    public func didLongPressInteraction() {
+        lastInteractionLocation = nil
     }
 }
 #endif
