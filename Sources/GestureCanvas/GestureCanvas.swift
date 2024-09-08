@@ -1,4 +1,7 @@
 import Foundation
+#if !os(macOS)
+import UIKit
+#endif
 import Observation
 import Combine
 import CoreGraphics
@@ -61,6 +64,10 @@ public final class GestureCanvas {
     @ObservationIgnored
     private var startCoordinate: GestureCanvasCoordinate?
     
+#if !os(macOS)
+    let interactionSetup = PassthroughSubject<UIEditMenuInteractionDelegate, Never>()
+#endif
+    
     public init() {}
 }
 
@@ -91,6 +98,15 @@ extension GestureCanvas {
         )
     }
 }
+
+#if !os(macOS)
+extension GestureCanvas {
+    
+    public func addLongPress(delegate: UIEditMenuInteractionDelegate) {
+        interactionSetup.send(delegate)
+    }
+}
+#endif
 
 extension GestureCanvas {
     

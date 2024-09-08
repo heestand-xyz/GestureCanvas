@@ -14,10 +14,6 @@ public struct GestureCanvasGestureView: View {
     
     @State private var startCoordinate: GestureCanvasCoordinate?
     
-    public init(canvas: GestureCanvas) {
-        self.canvas = canvas
-    }
-    
     public var body: some View {
         Color.gray.opacity(0.001)
             .coordinateSpace(GestureCanvasCoordinate.space)

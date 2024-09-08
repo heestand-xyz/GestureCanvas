@@ -1,31 +1,36 @@
 import SwiftUI
 
-public struct GestureCanvasView<FG: View, BG: View>: View {
+public struct GestureCanvasView<Content: View, GestureContent: View>: View {
     
     @Bindable var canvas: GestureCanvas
     
-    let background: () -> BG
-    let foreground: () -> FG
+    let gestureContent: (GestureCanvasGestureView) -> GestureContent
+    let content: () -> Content
     
     public init(canvas: GestureCanvas,
-                @ViewBuilder background: @escaping () -> BG,
-                @ViewBuilder foreground: @escaping () -> FG) {
+                @ViewBuilder gestureContent: @escaping (GestureCanvasGestureView) -> GestureContent = { $0 },
+                @ViewBuilder content: @escaping () -> Content) {
         self.canvas = canvas
-        self.background = background
-        self.foreground = foreground
+        self.gestureContent = gestureContent
+        self.content = content
     }
     
     public var body: some View {
         ZStack(alignment: .topLeading) {
-            background()
 #if os(macOS)
             GestureCanvasTrackpadView(canvas: canvas) {
                 ZStack(alignment: .topLeading) {
-                    foreground()
+                    gestureContent(GestureCanvasGestureView(canvas: canvas))
+                    content()
                 }
             }
 #else
-            foreground()
+            ZStack(alignment: .topLeading) {
+                GestureCanvasInteractionView(canvas: canvas) {
+                    gestureContent(GestureCanvasGestureView(canvas: canvas))
+                }
+                content()
+            }
 #endif
         }
         .background {
