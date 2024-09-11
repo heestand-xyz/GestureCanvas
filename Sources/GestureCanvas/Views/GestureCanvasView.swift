@@ -25,11 +25,11 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                 }
             }
 #else
-            ZStack(alignment: .topLeading) {
-                GestureCanvasInteractionView(canvas: canvas) {
+            GestureCanvasInteractionView(canvas: canvas) {
+                ZStack(alignment: .topLeading) {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
+                    content()
                 }
-                content()
             }
 #endif
         }
