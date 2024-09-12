@@ -44,7 +44,6 @@ public final class GestureCanvas {
     
     
 #if os(macOS)
-    public private(set) var refreshID = UUID()
     @ObservationIgnored
     public var trackpadEnabled: Bool = true
     @ObservationIgnored
@@ -73,15 +72,6 @@ public final class GestureCanvas {
     
     public init() {}
 }
-
-#if os(macOS)
-extension GestureCanvas {
-    @MainActor
-    public func refresh() {
-        refreshID = UUID()
-    }
-}
-#endif
 
 extension GestureCanvas {
     

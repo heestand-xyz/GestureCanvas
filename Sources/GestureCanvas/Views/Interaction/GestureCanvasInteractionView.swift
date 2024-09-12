@@ -17,12 +17,34 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     
     func makeUIView(context: Context) -> GestureCanvasInteractionUIView {
         let hostingController = UIHostingController(rootView: content())
+        context.coordinator.hostingController = hostingController
         let contentView: UIView = hostingController.view
-        contentView.backgroundColor = .clear // .gray.withAlphaComponent(0.001)
+        contentView.backgroundColor = .clear
         return GestureCanvasInteractionUIView(canvas: canvas, contentView: contentView)
     }
     
-    func updateUIView(_ trackpadView: GestureCanvasInteractionUIView, context: Context) {}
+    func updateUIView(_ interactionView: GestureCanvasInteractionUIView, context: Context) {
+        context.coordinator.refresh()
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(content: content)
+    }
+    
+    class Coordinator {
+
+        private let content: () -> Content
+
+        var hostingController: UIHostingController<Content>?
+
+        init(content: @escaping () -> Content) {
+            self.content = content
+        }
+
+        func refresh() {
+            hostingController?.rootView = content()
+        }
+    }
 }
 
 #endif

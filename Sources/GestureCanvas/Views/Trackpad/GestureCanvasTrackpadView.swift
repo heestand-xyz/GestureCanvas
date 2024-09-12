@@ -17,33 +17,24 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     }
     
     func updateNSView(_ trackpadView: GestureCanvasTrackpadNSView, context: Context) {
-        context.coordinator.refreshIfNeeded(refreshID: canvas.refreshID)
+        context.coordinator.refresh()
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(refreshID: canvas.refreshID, content: content)
+        Coordinator(content: content)
     }
     
     class Coordinator {
-
-        private var lastRefreshID: UUID
 
         private let content: () -> Content
 
         var hostingController: NSHostingController<Content>?
 
-        init(refreshID: UUID, content: @escaping () -> Content) {
-            lastRefreshID = refreshID
+        init(content: @escaping () -> Content) {
             self.content = content
         }
-        
-        func refreshIfNeeded(refreshID: UUID) {
-            if lastRefreshID == refreshID { return }
-            refresh()
-            lastRefreshID = refreshID
-        }
-        
-        private func refresh() {
+
+        func refresh() {
             hostingController?.rootView = content()
         }
     }

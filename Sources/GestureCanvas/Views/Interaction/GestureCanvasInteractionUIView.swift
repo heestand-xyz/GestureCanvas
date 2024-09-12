@@ -16,7 +16,7 @@ final class GestureCanvasInteractionUIView: UIView {
     
     let canvas: GestureCanvas
     
-    private let contentView: UIView
+    let contentView: UIView
     
     private var cancelBag: Set<AnyCancellable> = []
 
