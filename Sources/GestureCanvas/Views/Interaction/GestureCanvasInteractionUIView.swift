@@ -43,10 +43,10 @@ final class GestureCanvasInteractionUIView: UIView {
         addSubview(contentView)
         
         NSLayoutConstraint.activate([
-            contentView.topAnchor.constraint(equalTo: topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            contentView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: safeAreaLayoutGuide.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
         ])
     }
     
