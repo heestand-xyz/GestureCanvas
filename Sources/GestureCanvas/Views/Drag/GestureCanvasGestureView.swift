@@ -1,6 +1,6 @@
 //
-//  CanvasGestureView.swift
-//  Flow Nodes
+//  GestureCanvasGestureView.swift
+//  GestureCanvas
 //
 //  Created by Anton Heestand on 2024-03-20.
 //
