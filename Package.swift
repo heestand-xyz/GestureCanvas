@@ -15,7 +15,7 @@ let package = Package(
             targets: ["GestureCanvas"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/heestand-xyz/CoreGraphicsExtensions", from: "1.7.1"),
+        .package(url: "https://github.com/heestand-xyz/CoreGraphicsExtensions", from: "1.8.1"),
     ],
     targets: [
         .target(
