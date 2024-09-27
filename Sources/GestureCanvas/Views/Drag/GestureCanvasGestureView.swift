@@ -1,6 +1,6 @@
 //
 //  CanvasGestureView.swift
-//  Flow App
+//  Flow Nodes
 //
 //  Created by Anton Heestand on 2024-03-20.
 //
