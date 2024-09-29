@@ -13,6 +13,10 @@ public protocol GestureCanvasDelegate: AnyObject {
     
     func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
+
+#if !os(macOS)
+    func gestureCanvasLongPress(at location: CGPoint) -> CGPoint?
+#endif
     
 #if os(macOS)
     func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
@@ -101,6 +105,10 @@ extension GestureCanvas {
     
     public func didLongPressInteraction() {
         lastInteractionLocation = nil
+    }
+    
+    func longPress(at location: CGPoint) -> CGPoint? {
+        delegate?.gestureCanvasLongPress(at: location)
     }
 }
 #endif
