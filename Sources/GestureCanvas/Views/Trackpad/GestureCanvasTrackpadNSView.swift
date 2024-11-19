@@ -84,7 +84,7 @@ public class GestureCanvasTrackpadNSView: NSView {
         canvas.mouseLocation = getMouseLocation()
     }
     
-    func getMouseLocation() -> CGPoint? {
+    private func getMouseLocation() -> CGPoint? {
         guard let window: NSWindow else { return nil }
         let mouseLocation: CGPoint = window.mouseLocationOutsideOfEventStream
         guard let windowView: NSView = window.contentView else { return nil }
@@ -178,6 +178,29 @@ public class GestureCanvasTrackpadNSView: NSView {
             startCoordinate = nil
             magnification = nil
         default:
+            break
+        }
+    }
+    
+    // MARK: - Flags
+    
+    public override func rightMouseDown(with event: NSEvent) {
+        guard let location = getMouseLocation() else { return }
+        canvas.dragSecondaryStarted(at: location)
+    }
+    
+    public override func rightMouseDragged(with event: NSEvent) {
+        guard let location = getMouseLocation() else { return }
+        canvas.dragSecondaryUpdated(at: location)
+    }
+    
+    public override func rightMouseUp(with event: NSEvent) {
+        guard let location = getMouseLocation() else { return }
+        let action = canvas.dragSecondaryEnded(at: location)
+        switch action {
+        case .context(let menu):
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+        case .ignore:
             break
         }
     }
