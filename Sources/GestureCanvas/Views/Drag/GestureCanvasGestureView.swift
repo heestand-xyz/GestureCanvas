@@ -29,7 +29,7 @@ public struct GestureCanvasGestureView: View {
                         canvas.backgroundTap(at: value.location)
                     }
             )
-            .simultaneousGesture(
+            .highPriorityGesture(
                 DragGesture()
                     .onChanged { value in
                         if startCoordinate == nil {
@@ -51,23 +51,5 @@ public struct GestureCanvasGestureView: View {
                         startCoordinate = nil
                     }
             )
-#if !os(macOS)
-            .gesture(
-                MagnifyGesture()
-                    .onChanged { value in
-                        if startCoordinate == nil {
-                            startCoordinate = canvas.coordinate
-                        }
-                        var scale: CGFloat = startCoordinate!.scale * value.magnification
-                        scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
-                        canvas.coordinate.scale = scale
-                        let magnification: CGFloat = scale / startCoordinate!.scale
-                        canvas.coordinate.offset = (startCoordinate!.offset - value.startLocation) * magnification + value.startLocation
-                    }
-                    .onEnded { _ in
-                        startCoordinate = nil
-                    }
-            )
-#endif
     }
 }

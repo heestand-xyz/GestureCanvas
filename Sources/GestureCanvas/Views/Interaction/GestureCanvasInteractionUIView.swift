@@ -9,6 +9,7 @@
 
 import UIKit
 import Combine
+import CoreGraphicsExtensions
 
 final class GestureCanvasInteractionUIView: UIView {
     
@@ -19,6 +20,12 @@ final class GestureCanvasInteractionUIView: UIView {
     let contentView: UIView
     
     private var cancelBag: Set<AnyCancellable> = []
+    
+    struct Pinch {
+        let location: CGPoint
+        let coordinate: GestureCanvasCoordinate
+    }
+    private var startPinch: Pinch?
 
     public init(canvas: GestureCanvas, contentView: UIView) {
     
@@ -54,6 +61,8 @@ final class GestureCanvasInteractionUIView: UIView {
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(didLongPress(_:)))
         longPress.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber]
         addGestureRecognizer(longPress)
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(didPinch(_:)))
+        addGestureRecognizer(pinch)
     }
     
     private func listenForSetup() {
@@ -67,7 +76,7 @@ final class GestureCanvasInteractionUIView: UIView {
             .store(in: &cancelBag)
     }
     
-    @objc private func didLongPress(_ recognizer: UIGestureRecognizer) {
+    @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began else { return }
         let location: CGPoint = recognizer.location(in: contentView)
         guard let mappedLocation: CGPoint = canvas.longPress(at: location) else { return }
@@ -76,7 +85,35 @@ final class GestureCanvasInteractionUIView: UIView {
         interaction?.presentEditMenu(with: configuration)
     }
     
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+    @objc private func didPinch(_ recognizer: UIPinchGestureRecognizer) {
+        switch recognizer.state {
+        case .possible:
+            break
+        case .began:
+            startPinch = Pinch(
+                location: recognizer.location(in: self),
+                coordinate: canvas.coordinate
+            )
+        case .changed:
+            guard recognizer.numberOfTouches == 2 else { break }
+            guard let startPinch: Pinch else { break }
+            let offset: CGPoint = recognizer.location(in: self) - startPinch.location
+            let locationOffset: CGPoint = startPinch.coordinate.offset - startPinch.location
+            let scaledLocationOffset: CGPoint = locationOffset * recognizer.scale
+            let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
+            canvas.coordinate.offset = startPinch.coordinate.offset + offset + scaleOffset
+            canvas.coordinate.scale = startPinch.coordinate.scale * recognizer.scale
+        case .ended, .cancelled, .failed:
+            startPinch = nil;
+        @unknown default:
+            startPinch = nil;
+        }
+    }
+    
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
         true
     }
 }
