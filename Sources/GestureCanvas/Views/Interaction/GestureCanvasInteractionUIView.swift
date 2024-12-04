@@ -97,12 +97,15 @@ final class GestureCanvasInteractionUIView: UIView {
         case .changed:
             guard recognizer.numberOfTouches == 2 else { break }
             guard let startPinch: Pinch else { break }
+            var scale: CGFloat = startPinch.coordinate.scale * recognizer.scale
+            scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
+            let magnification: CGFloat = scale / startPinch.coordinate.scale
             let offset: CGPoint = recognizer.location(in: self) - startPinch.location
             let locationOffset: CGPoint = startPinch.coordinate.offset - startPinch.location
-            let scaledLocationOffset: CGPoint = locationOffset * recognizer.scale
+            let scaledLocationOffset: CGPoint = locationOffset * magnification
             let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
             canvas.coordinate.offset = startPinch.coordinate.offset + offset + scaleOffset
-            canvas.coordinate.scale = startPinch.coordinate.scale * recognizer.scale
+            canvas.coordinate.scale = scale
         case .ended, .cancelled, .failed:
             startPinch = nil;
         @unknown default:
