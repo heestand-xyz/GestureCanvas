@@ -11,6 +11,10 @@ import CoreGraphicsExtensions
 
 public protocol GestureCanvasDelegate: AnyObject {
     
+#if !os(macOS)
+    func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
+#endif
+    
     func gestureCanvasChanged(_ canvas: GestureCanvas, coordinate: GestureCanvasCoordinate)
     
     func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
@@ -73,12 +77,6 @@ public final class GestureCanvas {
     private var startCoordinate: GestureCanvasCoordinate?
     
 #if os(macOS)
-    let interactionSetup = PassthroughSubject<NSMenu, Never>()
-#else
-    let interactionSetup = PassthroughSubject<UIEditMenuInteractionDelegate, Never>()
-#endif
-    
-#if os(macOS)
     private var secondaryDragStartLocation: CGPoint?
     private var secondaryDragStartCoordinate: GestureCanvasCoordinate?
 #endif
@@ -107,10 +105,6 @@ extension GestureCanvas {
 
 #if !os(macOS)
 extension GestureCanvas {
-    
-    public func addLongPress(delegate: UIEditMenuInteractionDelegate) {
-        interactionSetup.send(delegate)
-    }
     
     public func didLongPressInteraction() {
         lastInteractionLocation = nil

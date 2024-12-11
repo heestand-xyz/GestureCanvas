@@ -66,7 +66,6 @@ public class GestureCanvasTrackpadNSView: NSView {
     public override func updateTrackingAreas() {
         let trackingArea = NSTrackingArea(rect: bounds, options: [
             .mouseMoved,
-//            .enabledDuringMouseDrag,
             .mouseEnteredAndExited,
             .activeInKeyWindow,
         ], owner: self, userInfo: nil)

@@ -34,13 +34,20 @@ final class GestureCanvasInteractionUIView: UIView {
     
         super.init(frame: .zero)
         
+        setup()
         layout()
         addGesture()
-        listenForSetup()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    private func setup() {
+        guard let delegate: UIEditMenuInteractionDelegate = canvas.delegate?.gestureCanvasEditMenuInteractionDelegate() else { return }
+        let interaction = UIEditMenuInteraction(delegate: delegate)
+        addInteraction(interaction)
+        self.interaction = interaction
     }
     
     private func layout() {
@@ -63,17 +70,6 @@ final class GestureCanvasInteractionUIView: UIView {
         addGestureRecognizer(longPress)
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(didPinch(_:)))
         addGestureRecognizer(pinch)
-    }
-    
-    private func listenForSetup() {
-        canvas.interactionSetup
-            .sink { [weak self] delegate in
-                guard let self else { return }
-                let interaction = UIEditMenuInteraction(delegate: delegate)
-                addInteraction(interaction)
-                self.interaction = interaction
-            }
-            .store(in: &cancelBag)
     }
     
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
