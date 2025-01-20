@@ -47,7 +47,7 @@ public struct GestureCanvasPathGrid: View {
     
     private func grid(
         at superScale: CGFloat,
-        lineWidth: CGFloat = .pointsPerPixel
+        lineWidth: CGFloat = .estimatedPointsPerPixel
     ) -> some View {
         GeometryReader { geo in
             Path { path in

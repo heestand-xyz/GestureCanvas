@@ -47,7 +47,7 @@ public struct GestureCanvasGrid: View {
     
     private func grid(
         at superScale: CGFloat,
-        lineWidth: CGFloat = .pointsPerPixel,
+        lineWidth: CGFloat = .estimatedPointsPerPixel,
         opacity: Double = 1.0,
         in context: inout GraphicsContext,
         size: CGSize
