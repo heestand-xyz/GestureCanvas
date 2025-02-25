@@ -10,18 +10,12 @@ import CoreGraphics
 import CoreGraphicsExtensions
 
 public protocol GestureCanvasDelegate: AnyObject {
-    
-#if !os(macOS)
-    func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
-#endif
-    
+
     func gestureCanvasChanged(_ canvas: GestureCanvas, coordinate: GestureCanvasCoordinate)
     
     func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
 
-    func gestureCanvasContext(at location: CGPoint) -> CGPoint?
-    
 #if os(macOS)
     func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionUpdated(_ canvas: GestureCanvas, at location: CGPoint)
@@ -29,7 +23,10 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasScrollStarted(_ canvas: GestureCanvas)
     func gestureCanvasScrollEnded(_ canvas: GestureCanvas)
     @MainActor
-    func gestureCanvasContextMenu(_ canvas: GestureCanvas) -> NSMenu?
+    func gestureCanvasContextMenu(_ canvas: GestureCanvas, at location: CGPoint) -> NSMenu?
+#else
+    func gestureCanvasContext(at location: CGPoint) -> CGPoint?
+    func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
 #endif
 }
 
@@ -174,7 +171,7 @@ extension GestureCanvas {
         let offset: CGPoint = location - startLocation
         let distance = hypot(offset.x, offset.y)
         guard distance < 10 else { return .ignore }
-        guard let contextMenu: NSMenu = delegate?.gestureCanvasContextMenu(self) else { return .ignore }
+        guard let contextMenu: NSMenu = delegate?.gestureCanvasContextMenu(self, at: location) else { return .ignore }
         return .context(contextMenu)
     }
 }

@@ -183,7 +183,7 @@ public class GestureCanvasTrackpadNSView: NSView {
         }
     }
     
-    // MARK: - Flags
+    // MARK: - Click
     
     public override func rightMouseDown(with event: NSEvent) {
         guard let location = getMouseLocation() else { return }
