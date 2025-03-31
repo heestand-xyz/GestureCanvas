@@ -67,7 +67,7 @@ public class GestureCanvasTrackpadNSView: NSView {
         let trackingArea = NSTrackingArea(rect: bounds, options: [
             .mouseMoved,
             .mouseEnteredAndExited,
-            .activeInKeyWindow,
+            .activeInActiveApp
         ], owner: self, userInfo: nil)
         addTrackingArea(trackingArea)
     }
@@ -98,7 +98,6 @@ public class GestureCanvasTrackpadNSView: NSView {
     // MARK: - Scroll
     
     public override func scrollWheel(with event: NSEvent) {
-        guard window?.isKeyWindow == true else { return }
         guard canvas.trackpadEnabled else { return }
         
         var delta: CGVector = CGVector(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY)
@@ -157,7 +156,6 @@ public class GestureCanvasTrackpadNSView: NSView {
     // MARK: - Magnify
     
     public override func magnify(with event: NSEvent) {
-        guard window?.isKeyWindow == true else { return }
         guard canvas.trackpadEnabled else { return }
         guard let mouseLocation: CGPoint = getMouseLocation() else { return }
         guard bounds.contains(mouseLocation) else { return }
