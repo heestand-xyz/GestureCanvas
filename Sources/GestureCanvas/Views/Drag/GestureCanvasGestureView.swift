@@ -32,24 +32,42 @@ public struct GestureCanvasGestureView: View {
             .highPriorityGesture(
                 DragGesture()
                     .onChanged { value in
-                        if startCoordinate == nil {
-#if os(macOS)
-                            canvas.dragSelectionStarted(at: value.startLocation)
-#endif
-                            startCoordinate = canvas.coordinate
-                        }
-#if os(macOS)
-                        canvas.dragSelectionUpdated(at: value.location)
-#else
-                        canvas.coordinate.offset = startCoordinate!.offset + value.translation
-#endif
+                        onDragChanged(value)
                     }
                     .onEnded { value in
-#if os(macOS)
-                        canvas.dragSelectionEnded(at: value.location)
-#endif
-                        startCoordinate = nil
+                        onDragEnded(value)
                     }
             )
+    }
+    
+    private func onDragChanged(_ value: DragGesture.Value) {
+        if startCoordinate == nil {
+#if os(macOS)
+            canvas.dragSelectionStarted(at: value.startLocation)
+#else
+            if canvas.isPinching { return }
+#endif
+            startCoordinate = canvas.coordinate
+        }
+#if os(macOS)
+        canvas.dragSelectionUpdated(at: value.location)
+#else
+        if canvas.isPinching {
+#if os(macOS)
+            canvas.dragSelectionEnded(at: value.location)
+#endif
+            startCoordinate = nil
+            return
+        }
+        canvas.coordinate.offset = startCoordinate!.offset + value.translation
+#endif
+    }
+    
+    private func onDragEnded(_ value: DragGesture.Value) {
+        guard startCoordinate != nil else { return }
+#if os(macOS)
+        canvas.dragSelectionEnded(at: value.location)
+#endif
+        startCoordinate = nil
     }
 }

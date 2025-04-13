@@ -9,27 +9,35 @@ import Combine
 import CoreGraphics
 import CoreGraphicsExtensions
 
+@MainActor
 public protocol GestureCanvasDelegate: AnyObject {
 
     func gestureCanvasChanged(_ canvas: GestureCanvas, coordinate: GestureCanvasCoordinate)
     
     func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
-
+    
 #if os(macOS)
     func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionUpdated(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionEnded(_ canvas: GestureCanvas, at location: CGPoint)
+
     func gestureCanvasScrollStarted(_ canvas: GestureCanvas)
     func gestureCanvasScrollEnded(_ canvas: GestureCanvas)
+
     @MainActor
     func gestureCanvasContextMenu(_ canvas: GestureCanvas, at location: CGPoint) -> NSMenu?
 #else
     func gestureCanvasContext(at location: CGPoint) -> CGPoint?
     func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
+
+    func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
+    func gestureCanvasDidStartPinch(_ canvas: GestureCanvas)
+    func gestureCanvasDidEndPinch(_ canvas: GestureCanvas)
 #endif
 }
 
+@MainActor
 @Observable
 public final class GestureCanvas {
     
@@ -49,6 +57,17 @@ public final class GestureCanvas {
     
     public internal(set) var size: CGSize = .one
     
+#if !os(macOS)
+    public internal(set) var isPinching: Bool = false {
+        didSet {
+            if isPinching {
+                delegate?.gestureCanvasDidStartPinch(self)
+            } else {
+                delegate?.gestureCanvasDidEndPinch(self)
+            }
+        }
+    }
+#endif
     
 #if os(macOS)
     @ObservationIgnored

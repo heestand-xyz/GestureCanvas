@@ -69,6 +69,7 @@ final class GestureCanvasInteractionUIView: UIView {
         longPress.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber]
         addGestureRecognizer(longPress)
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(didPinch(_:)))
+        pinch.delegate = self
         addGestureRecognizer(pinch)
     }
     
@@ -86,10 +87,12 @@ final class GestureCanvasInteractionUIView: UIView {
         case .possible:
             break
         case .began:
+            guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
             startPinch = Pinch(
                 location: recognizer.location(in: self),
                 coordinate: canvas.coordinate
             )
+            canvas.isPinching = true
         case .changed:
             guard recognizer.numberOfTouches == 2 else { break }
             guard let startPinch: Pinch else { break }
@@ -103,17 +106,22 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.coordinate.offset = startPinch.coordinate.offset + offset + scaleOffset
             canvas.coordinate.scale = scale
         case .ended, .cancelled, .failed:
+            guard startPinch != nil else { return }
             startPinch = nil;
+            canvas.isPinching = false
         @unknown default:
-            startPinch = nil;
+            break
         }
     }
+}
+
+extension GestureCanvasInteractionUIView: UIGestureRecognizerDelegate {
     
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        true
+       true
     }
 }
 
