@@ -92,7 +92,10 @@ final class GestureCanvasInteractionUIView: UIView {
                 location: recognizer.location(in: self),
                 coordinate: canvas.coordinate
             )
-            canvas.isPinching = true
+            if canvas.isPanning {
+                canvas.isPanning = false
+            }
+            canvas.isZooming = true
         case .changed:
             guard recognizer.numberOfTouches == 2 else { break }
             guard let startPinch: Pinch else { break }
@@ -107,8 +110,8 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.coordinate.scale = scale
         case .ended, .cancelled, .failed:
             guard startPinch != nil else { return }
-            startPinch = nil;
-            canvas.isPinching = false
+            startPinch = nil
+            canvas.isZooming = false
         @unknown default:
             break
         }

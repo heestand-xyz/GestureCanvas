@@ -32,9 +32,12 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
 
     func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
-    func gestureCanvasDidStartPinch(_ canvas: GestureCanvas)
-    func gestureCanvasDidEndPinch(_ canvas: GestureCanvas)
 #endif
+    
+    func gestureCanvasDidStartPan(_ canvas: GestureCanvas)
+    func gestureCanvasDidEndPan(_ canvas: GestureCanvas)
+    func gestureCanvasDidStartZoom(_ canvas: GestureCanvas)
+    func gestureCanvasDidEndZoom(_ canvas: GestureCanvas)
 }
 
 @MainActor
@@ -57,17 +60,30 @@ public final class GestureCanvas {
     
     public internal(set) var size: CGSize = .one
     
-#if !os(macOS)
-    public internal(set) var isPinching: Bool = false {
+    @available(*, deprecated, renamed: "isZooming")
+    public var isPinching: Bool {
+        isZooming
+    }
+    
+    public internal(set) var isPanning: Bool = false {
         didSet {
-            if isPinching {
-                delegate?.gestureCanvasDidStartPinch(self)
+            if isPanning {
+                delegate?.gestureCanvasDidStartPan(self)
             } else {
-                delegate?.gestureCanvasDidEndPinch(self)
+                delegate?.gestureCanvasDidEndPan(self)
             }
         }
     }
-#endif
+    
+    public internal(set) var isZooming: Bool = false {
+        didSet {
+            if isZooming {
+                delegate?.gestureCanvasDidStartZoom(self)
+            } else {
+                delegate?.gestureCanvasDidEndZoom(self)
+            }
+        }
+    }
     
 #if os(macOS)
     @ObservationIgnored

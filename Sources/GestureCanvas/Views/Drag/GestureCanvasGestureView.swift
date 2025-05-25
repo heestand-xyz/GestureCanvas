@@ -45,17 +45,16 @@ public struct GestureCanvasGestureView: View {
 #if os(macOS)
             canvas.dragSelectionStarted(at: value.startLocation)
 #else
-            if canvas.isPinching { return }
+            if canvas.isZooming { return }
+            canvas.isPanning = true
 #endif
             startCoordinate = canvas.coordinate
         }
 #if os(macOS)
         canvas.dragSelectionUpdated(at: value.location)
 #else
-        if canvas.isPinching {
-#if os(macOS)
-            canvas.dragSelectionEnded(at: value.location)
-#endif
+        if canvas.isZooming {
+            canvas.isPanning = false
             startCoordinate = nil
             return
         }
@@ -67,6 +66,8 @@ public struct GestureCanvasGestureView: View {
         guard startCoordinate != nil else { return }
 #if os(macOS)
         canvas.dragSelectionEnded(at: value.location)
+#else
+        canvas.isPanning = false
 #endif
         startCoordinate = nil
     }
