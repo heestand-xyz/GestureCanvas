@@ -58,7 +58,7 @@ public struct GestureCanvasGestureView: View {
             startCoordinate = nil
             return
         }
-        canvas.coordinate.offset = startCoordinate!.offset + value.translation
+        canvas.offset(to: startCoordinate!.offset + value.translation)
 #endif
     }
     

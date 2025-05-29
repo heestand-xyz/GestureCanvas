@@ -113,6 +113,11 @@ public final class GestureCanvas {
     private var secondaryDragStartLocation: CGPoint?
     private var secondaryDragStartCoordinate: GestureCanvasCoordinate?
 #endif
+
+#if !os(macOS)
+    /// Use to offset coordinate if origin is not a view origin.
+    public var pinchCoordinateOffset: CGPoint = .zero
+#endif
     
     public var animationDuration: TimeInterval = 0.5
     private var moveAnimator: DisplayLinkAnimator?
