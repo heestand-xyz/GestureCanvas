@@ -16,12 +16,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/heestand-xyz/CoreGraphicsExtensions", from: "2.0.1"),
+        .package(url: "https://github.com/heestand-xyz/DisplayLink", from: "2.0.1"),
     ],
     targets: [
         .target(
             name: "GestureCanvas",
             dependencies: [
-                "CoreGraphicsExtensions"
+                "CoreGraphicsExtensions",
+                "DisplayLink",
             ]),
     ]
 )

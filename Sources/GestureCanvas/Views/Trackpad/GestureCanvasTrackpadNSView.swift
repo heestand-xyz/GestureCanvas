@@ -143,13 +143,19 @@ public class GestureCanvasTrackpadNSView: NSView {
         if scrollMethod == .zoom {
             let magnification: CGFloat = 1.0 + velocity.dy * Self.zoomScrollVelocityMultiplier
             var scale: CGFloat = canvas.coordinate.scale * magnification
-            scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
-            canvas.coordinate.scale = scale
+            if let minimumScale = canvas.minimumScale {
+                scale = max(scale, minimumScale)
+            }
+            if let maximumScale = canvas.maximumScale {
+                scale = min(scale, maximumScale)
+            }
+            var coordinate = canvas.coordinate
+            coordinate.scale = scale
             let offsetMagnification: CGFloat = scale / startCoordinate.scale
-            canvas.coordinate.offset = (startCoordinate.offset - location) * offsetMagnification + location
-            
+            coordinate.offset = (startCoordinate.offset - location) * offsetMagnification + location
+            canvas.move(to: coordinate)
         } else {
-            canvas.coordinate.offset += velocity
+            canvas.offset(by: velocity.asPoint)
         }
     }
     
@@ -181,10 +187,17 @@ public class GestureCanvasTrackpadNSView: NSView {
             guard var magnification else { return }
             magnification += event.magnification
             var scale: CGFloat = startCoordinate.scale * magnification
-            scale = min(max(scale, canvas.minimumScale), canvas.maximumScale)
-            canvas.coordinate.scale = scale
+            if let minimumScale = canvas.minimumScale {
+                scale = max(scale, minimumScale)
+            }
+            if let maximumScale = canvas.maximumScale {
+                scale = min(scale, maximumScale)
+            }
+            var coordinate = canvas.coordinate
+            coordinate.scale = scale
             let finalMagnification: CGFloat = scale / startCoordinate.scale
-            canvas.coordinate.offset = (startCoordinate.offset - mouseLocation) * finalMagnification + mouseLocation
+            coordinate.offset = (startCoordinate.offset - mouseLocation) * finalMagnification + mouseLocation
+            canvas.move(to: coordinate)
             self.magnification = magnification
         case .ended, .cancelled:
             guard startCoordinate != nil else { return }

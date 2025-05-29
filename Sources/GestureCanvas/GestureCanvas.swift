@@ -8,6 +8,7 @@ import Observation
 import Combine
 import CoreGraphics
 import CoreGraphicsExtensions
+import DisplayLink
 
 @MainActor
 public protocol GestureCanvasDelegate: AnyObject {
@@ -47,16 +48,16 @@ public final class GestureCanvas {
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
     
-    public var coordinate: GestureCanvasCoordinate = .zero {
+    public private(set) var coordinate: GestureCanvasCoordinate = .zero {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
         }
     }
     
     @ObservationIgnored
-    public var minimumScale: CGFloat = 0.25
+    public var minimumScale: CGFloat? = 0.25
     @ObservationIgnored
-    public var maximumScale: CGFloat = 4.0
+    public var maximumScale: CGFloat? = 4.0
     
     public internal(set) var size: CGSize = .one
     
@@ -113,7 +114,59 @@ public final class GestureCanvas {
     private var secondaryDragStartCoordinate: GestureCanvasCoordinate?
 #endif
     
+    public var animationDuration: TimeInterval = 0.5
+    private var moveAnimator: DisplayLinkAnimator?
+    public var isAnimating: Bool {
+        moveAnimator != nil
+    }
+    
     public init() {}
+}
+
+extension GestureCanvas {
+    
+    public func scale(to scale: CGFloat, animated: Bool = false) {
+        move(to: GestureCanvasCoordinate(offset: coordinate.offset, scale: scale))
+    }
+    
+    public func scale(by scale: CGFloat, animated: Bool = false) {
+        move(to: GestureCanvasCoordinate(offset: coordinate.offset, scale: coordinate.scale * scale))
+    }
+    
+    public func offset(to offset: CGPoint, animated: Bool = false) {
+        move(to: GestureCanvasCoordinate(offset: offset, scale: coordinate.scale))
+    }
+    
+    public func offset(by offset: CGPoint, animated: Bool = false) {
+        move(to: GestureCanvasCoordinate(offset: coordinate.offset + offset, scale: coordinate.scale))
+    }
+    
+    public func move(to coordinate: GestureCanvasCoordinate, animated: Bool = false) {
+        if isAnimating {
+            cancelMoveAnimation()
+        }
+        if animated {
+            let oldCoordinate = self.coordinate
+            moveAnimator = DisplayLinkAnimator(duration: animationDuration)
+            moveAnimator?.run { [weak self] progress in
+                let fraction = progress.fractionWithEaseInOut()
+                let newCoordinate = GestureCanvasCoordinate(
+                    offset: oldCoordinate.offset * (1.0 - fraction) + coordinate.offset * fraction,
+                    scale: oldCoordinate.scale * (1.0 - fraction) + coordinate.scale * fraction
+                )
+                self?.coordinate = newCoordinate
+            } completion: { [weak self] in
+                self?.cancelMoveAnimation()
+            }
+        } else {
+            self.coordinate = coordinate
+        }
+    }
+    
+    private func cancelMoveAnimation() {
+        moveAnimator?.cancel()
+        moveAnimator = nil
+    }
 }
 
 extension GestureCanvas {
@@ -188,7 +241,7 @@ extension GestureCanvas {
         guard var coordinate: GestureCanvasCoordinate = secondaryDragStartCoordinate else { return }
         let offset: CGPoint = location - startLocation
         coordinate.offset += offset
-        self.coordinate = coordinate
+        move(to: coordinate)
     }
     
     enum SecondaryEndAction {
