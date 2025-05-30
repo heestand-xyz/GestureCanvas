@@ -84,7 +84,7 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didPinch(_ recognizer: UIPinchGestureRecognizer) {
         func location() -> CGPoint {
-            recognizer.location(in: self) + canvas.pinchCoordinateOffset
+            recognizer.location(in: self) + canvas.zoomCoordinateOffset
         }
         switch recognizer.state {
         case .possible:
