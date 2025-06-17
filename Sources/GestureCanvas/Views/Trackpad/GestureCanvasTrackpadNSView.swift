@@ -173,6 +173,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     // MARK: - Magnify
     
     public override func magnify(with event: NSEvent) {
+        guard window?.isKeyWindow == true else { return }
         guard canvas.trackpadEnabled else { return }
         guard var mouseLocation: CGPoint = getMouseLocation() else { return }
         mouseLocation += canvas.zoomCoordinateOffset
