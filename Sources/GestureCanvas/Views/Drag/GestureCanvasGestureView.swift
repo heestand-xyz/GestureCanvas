@@ -38,6 +38,12 @@ public struct GestureCanvasGestureView: View {
                         onDragEnded(value)
                     }
             )
+            .onChange(of: canvas.isZooming) { _, isZooming in
+                if startCoordinate != nil, isZooming {
+                    canvas.isPanning = false
+                    startCoordinate = nil
+                }
+            }
     }
     
     private func onDragChanged(_ value: DragGesture.Value) {
@@ -53,11 +59,7 @@ public struct GestureCanvasGestureView: View {
 #if os(macOS)
         canvas.dragSelectionUpdated(at: value.location)
 #else
-        if canvas.isZooming {
-            canvas.isPanning = false
-            startCoordinate = nil
-            return
-        }
+        if canvas.isZooming { return }
         canvas.offset(to: startCoordinate!.offset + value.translation)
 #endif
     }
