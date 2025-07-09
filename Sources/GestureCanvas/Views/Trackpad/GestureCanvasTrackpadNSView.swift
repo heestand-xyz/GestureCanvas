@@ -105,8 +105,15 @@ public class GestureCanvasTrackpadNSView: NSView {
             delta *= Self.middleMouseScrollVelocityMultiplier
         }
         
+        let scrollMethod: ScrollMethod = canvas.keyboardFlags.contains(.command) || withScrollWheel ? .zoom : .pan
+        
         if scrollTimer == nil {
             guard max(abs(delta.dx), abs(delta.dy)) > scrollThreshold else { return }
+            self.scrollMethod = scrollMethod
+            didStartScroll(withScrollWheel: withScrollWheel)
+        } else if let oldScrollMethod = self.scrollMethod, oldScrollMethod != scrollMethod {
+            didEndScroll()
+            self.scrollMethod = scrollMethod
             didStartScroll(withScrollWheel: withScrollWheel)
         }
         
@@ -121,7 +128,6 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     private func didStartScroll(withScrollWheel: Bool) {
-        scrollMethod = canvas.keyboardFlags.contains(.command) || withScrollWheel ? .zoom : .pan
         startCoordinate = canvas.coordinate
         canvas.isScrolling = true
         if scrollMethod == .zoom {
