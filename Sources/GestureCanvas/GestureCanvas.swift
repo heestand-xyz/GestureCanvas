@@ -144,25 +144,31 @@ extension GestureCanvas {
         move(to: GestureCanvasCoordinate(offset: coordinate.offset + offset, scale: coordinate.scale))
     }
     
-    public func move(to coordinate: GestureCanvasCoordinate, animated: Bool = false) {
+    public func move(to coordinate: GestureCanvasCoordinate) {
         if isAnimating {
             cancelMoveAnimation()
         }
-        if animated {
-            let oldCoordinate = self.coordinate
-            moveAnimator = DisplayLinkAnimator(duration: animationDuration)
+        self.coordinate = coordinate
+    }
+    
+    public func animate(to coordinate: GestureCanvasCoordinate) async {
+        if isAnimating {
+            cancelMoveAnimation()
+        }
+        let oldCoordinate = self.coordinate
+        moveAnimator = DisplayLinkAnimator(duration: animationDuration)
+        await withCheckedContinuation { continuation in
             moveAnimator?.run { [weak self] progress in
-                let fraction = progress.fractionWithEaseInOut()
+                let fraction = progress.fractionWithEaseInOut(iterations: 2)
                 let newCoordinate = GestureCanvasCoordinate(
                     offset: oldCoordinate.offset * (1.0 - fraction) + coordinate.offset * fraction,
                     scale: oldCoordinate.scale * (1.0 - fraction) + coordinate.scale * fraction
                 )
                 self?.coordinate = newCoordinate
-            } completion: { [weak self] in
-                self?.cancelMoveAnimation()
+            } completion: { [weak self] _ in
+                self?.moveAnimator = nil
+                continuation.resume()
             }
-        } else {
-            self.coordinate = coordinate
         }
     }
     
