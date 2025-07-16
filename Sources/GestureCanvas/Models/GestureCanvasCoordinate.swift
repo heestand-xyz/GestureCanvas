@@ -3,7 +3,7 @@ import SwiftUI
 import CoreGraphicsExtensions
 
 /// A lower value is zoomed out, a higher value is zoomed in.
-public struct GestureCanvasCoordinate: Equatable, Sendable {
+public struct GestureCanvasCoordinate: Equatable, Sendable, Codable {
     
     public static let space: NamedCoordinateSpace = .named("gesture-canvas-coordinate-space")
     
