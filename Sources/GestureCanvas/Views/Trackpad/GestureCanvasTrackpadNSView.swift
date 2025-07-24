@@ -17,8 +17,17 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     private var scrollMethod: ScrollMethod?
     private var scrollTimer: Timer?
-    private let scrollTimeout: Double = 0.15
+    private let scrollTimeout: TimeInterval = 0.15
     private let scrollThreshold: CGFloat = 1.5
+
+    @ObservationIgnored
+    private var multiTapCount: Int = 0
+    @ObservationIgnored
+    private var multiTapBeganDate: Date?
+    @ObservationIgnored
+    private var multiTapTimer: Timer?
+    private let multiTapMaximumDownTime: TimeInterval = 0.25
+    private let multiTapMaximumWaitTime: TimeInterval = 0.25
     
     private let contentView: NSView?
     
@@ -33,6 +42,8 @@ public class GestureCanvasTrackpadNSView: NSView {
         self.contentView = contentView
 
         super.init(frame: .zero)
+        
+        allowedTouchTypes = [.direct, .indirect]
         
         if let contentView {
             contentView.translatesAutoresizingMaskIntoConstraints = false
@@ -142,7 +153,7 @@ public class GestureCanvasTrackpadNSView: NSView {
         guard let location: CGPoint = getMouseLocation() else { return }
         
         if isNaN(velocity.dx) || isNaN(velocity.dy) {
-            print("Gesture Canvass - Scroll Delta is NaN")
+            print("Gesture Canvas - Scroll Delta is NaN")
             return
         }
         
@@ -240,6 +251,56 @@ public class GestureCanvasTrackpadNSView: NSView {
         case .ignore:
             break
         }
+    }
+    
+    // MARK: - Touch
+    
+    public override func touchesBegan(with event: NSEvent) {
+        super.touchesBegan(with: event)
+        let touches: Set<NSTouch> = event.touches(matching: .began, in: self)
+        guard touches.count >= 2 else { return }
+        guard touches.allSatisfy({ $0.type == .indirect }) else { return }
+        multiTapTimer?.invalidate()
+        multiTapTimer = nil
+        multiTapBeganDate = .now
+    }
+    
+    public override func touchesEnded(with event: NSEvent) {
+        super.touchesEnded(with: event)
+        guard let date: Date = multiTapBeganDate else { return }
+        defer { multiTapBeganDate = nil }
+        guard date.distance(to: .now) < multiTapMaximumDownTime else {
+            cancelMultiTap()
+            return
+        }
+        multiTapCount += 1
+        multiTapTimer?.invalidate()
+        multiTapTimer = .scheduledTimer(withTimeInterval: multiTapMaximumWaitTime, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            if let location = getMouseLocation() {
+                didMultiTap(count: multiTapCount, at: location)
+            }
+            multiTapCount = 0
+            multiTapTimer = nil
+        }
+    }
+    
+    public override func touchesCancelled(with event: NSEvent) {
+        super.touchesCancelled(with: event)
+        cancelMultiTap()
+    }
+    
+    // MARK: - Multi Tap
+    
+    private func didMultiTap(count: Int, at location: CGPoint) {
+        canvas.multiTap(count: count, at: location)
+    }
+    
+    private func cancelMultiTap() {
+        multiTapTimer?.invalidate()
+        multiTapTimer = nil
+        multiTapCount = 0
+        multiTapBeganDate = nil
     }
     
     // MARK: - Flags

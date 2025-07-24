@@ -19,6 +19,8 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
     
 #if os(macOS)
+    func gestureCanvasLightTrackpadTap(_ canvas: GestureCanvas, tapCount: Int, at location: CGPoint)
+    
     func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionUpdated(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionEnded(_ canvas: GestureCanvas, at location: CGPoint)
@@ -222,6 +224,13 @@ extension GestureCanvas {
 }
 
 #if os(macOS)
+
+extension GestureCanvas {
+    /// A light tap with multiple fingers on trackpad.
+    func multiTap(count: Int, at location: CGPoint) {
+        delegate?.gestureCanvasLightTrackpadTap(self, tapCount: count, at: location)
+    }
+}
 
 extension GestureCanvas {
  
