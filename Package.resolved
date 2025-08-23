@@ -8,6 +8,15 @@
         "revision" : "a64b26e06b6f95fd0bc04cdd97d1466d6167634a",
         "version" : "2.0.1"
       }
+    },
+    {
+      "identity" : "displaylink",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/heestand-xyz/DisplayLink",
+      "state" : {
+        "revision" : "7765701250010ca99825eff645d24556247aaf22",
+        "version" : "2.1.1"
+      }
     }
   ],
   "version" : 2
