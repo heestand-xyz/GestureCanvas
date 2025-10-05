@@ -94,6 +94,8 @@ public final class GestureCanvas {
     @ObservationIgnored
     public internal(set) var mouseLocation: CGPoint?
     public internal(set) var keyboardFlags: Set<GestureCanvasKeyboardFlag> = []
+    /// Magnifying with 2 fingers on the trackpad.
+    internal var isMagnifying: Bool = false
     public internal(set) var isScrolling: Bool = false {
         didSet {
             if isScrolling {

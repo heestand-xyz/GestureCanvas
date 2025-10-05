@@ -109,6 +109,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     public override func scrollWheel(with event: NSEvent) {
         guard canvas.trackpadEnabled else { return }
+        guard !canvas.isMagnifying else { return }
         
         var delta: CGVector = CGVector(dx: event.scrollingDeltaX, dy: event.scrollingDeltaY)
         let withScrollWheel: Bool = !event.hasPreciseScrollingDeltas
@@ -129,7 +130,6 @@ public class GestureCanvasTrackpadNSView: NSView {
         }
         
         didScroll(by: delta)
-        
         scrollTimer?.invalidate()
         scrollTimer = Timer(timeInterval: scrollTimeout, repeats: false, block: { [weak self] _ in
             self?.scrollTimer = nil
@@ -176,6 +176,12 @@ public class GestureCanvasTrackpadNSView: NSView {
         }
     }
     
+    private func cancelScroll() {
+        scrollTimer?.invalidate()
+        scrollTimer = nil
+        didEndScroll()
+    }
+    
     private func didEndScroll() {
         startCoordinate = nil
         canvas.isScrolling = false
@@ -197,9 +203,13 @@ public class GestureCanvasTrackpadNSView: NSView {
         guard bounds.contains(mouseLocation) else { return }
         switch event.phase {
         case .began:
+            if canvas.isScrolling {
+                cancelScroll()
+            }
             guard startCoordinate == nil else { return }
             startCoordinate = canvas.coordinate
             magnification = 1.0
+            canvas.isMagnifying = true
             canvas.isZooming = true
         case .changed:
             guard let startCoordinate else { return }
@@ -222,6 +232,7 @@ public class GestureCanvasTrackpadNSView: NSView {
             guard startCoordinate != nil else { return }
             startCoordinate = nil
             magnification = nil
+            canvas.isMagnifying = false
             canvas.isZooming = false
         default:
             break
