@@ -50,7 +50,7 @@ public final class GestureCanvas {
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
     
-    public private(set) var coordinate: GestureCanvasCoordinate = .zero {
+    public private(set) var coordinate: GestureCanvasCoordinate {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
         }
@@ -127,7 +127,9 @@ public final class GestureCanvas {
         moveAnimator != nil
     }
     
-    public init() {}
+    public init(coordinate: GestureCanvasCoordinate = .zero) {
+        self.coordinate = coordinate
+    }
 }
 
 extension GestureCanvas {
@@ -185,6 +187,10 @@ extension GestureCanvas {
 extension GestureCanvas {
     
     public func coordinate(in frame: CGRect, padding: CGFloat = 0.0) -> GestureCanvasCoordinate {
+        Self.coordinate(in: frame, padding: padding, size: size)
+    }
+    
+    public static func coordinate(in frame: CGRect, padding: CGFloat = 0.0, size: CGSize) -> GestureCanvasCoordinate {
         let targetFrame: CGRect = CGRect(
             origin: frame.origin - padding,
             size: frame.size + (padding * 2)
