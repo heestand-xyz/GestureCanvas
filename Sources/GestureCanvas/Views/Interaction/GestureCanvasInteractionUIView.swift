@@ -27,6 +27,12 @@ final class GestureCanvasInteractionUIView: UIView {
     }
     private var startPinch: Pinch?
 
+    struct Pan {
+        let location: CGPoint
+        let coordinate: GestureCanvasCoordinate
+    }
+    private var startPan: Pan?
+
     public init(canvas: GestureCanvas, contentView: UIView) {
     
         self.canvas = canvas
@@ -36,7 +42,7 @@ final class GestureCanvasInteractionUIView: UIView {
         
         setup()
         layout()
-        addGesture()
+        addGestures()
     }
     
     required init?(coder: NSCoder) {
@@ -64,11 +70,27 @@ final class GestureCanvasInteractionUIView: UIView {
         ])
     }
     
-    private func addGesture() {
+    private func addGestures() {
+        
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(didLongPress(_:)))
         longPress.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber]
         addGestureRecognizer(longPress)
+        
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(didPan(_:)))
+        pan.allowedScrollTypesMask = .continuous
+        pan.allowedTouchTypes = [
+//            NSNumber(value: UITouch.TouchType.direct.rawValue),
+            NSNumber(value: UITouch.TouchType.indirectPointer.rawValue),
+//            NSNumber(value: UITouch.TouchType.pencil.rawValue)
+        ]
+        pan.delegate = self
+        addGestureRecognizer(pan)
+        
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(didPinch(_:)))
+        pinch.allowedTouchTypes = [
+            NSNumber(value: UITouch.TouchType.direct.rawValue),
+            NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)
+        ]
         pinch.delegate = self
         addGestureRecognizer(pinch)
     }
@@ -80,6 +102,36 @@ final class GestureCanvasInteractionUIView: UIView {
         canvas.lastInteractionLocation = mappedLocation
         let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: mappedLocation)
         interaction?.presentEditMenu(with: configuration)
+    }
+    
+    @objc private func didPan(_ recognizer: UIPanGestureRecognizer) {
+        func location() -> CGPoint {
+            recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        }
+        switch recognizer.state {
+        case .possible:
+            break
+        case .began:
+            if canvas.isZooming {
+                return
+            }
+            startPan = Pan(
+                location: location(),
+                coordinate: canvas.coordinate
+            )
+        case .changed:
+            guard let startPan: Pan else { break }
+            let offset: CGPoint = location() - startPan.location
+            var coordinate = canvas.coordinate
+            coordinate.offset = startPan.coordinate.offset + offset
+            canvas.move(to: coordinate)
+        case .ended, .cancelled, .failed:
+            guard startPan != nil else { return }
+            startPan = nil
+            canvas.isPanning = false
+        @unknown default:
+            break
+        }
     }
     
     @objc private func didPinch(_ recognizer: UIPinchGestureRecognizer) {
@@ -100,7 +152,7 @@ final class GestureCanvasInteractionUIView: UIView {
             }
             canvas.isZooming = true
         case .changed:
-            guard recognizer.numberOfTouches == 2 else { break }
+//            guard recognizer.numberOfTouches == 2 else { break }
             guard let startPinch: Pinch else { break }
             var scale: CGFloat = startPinch.coordinate.scale * recognizer.scale
             if let minimumScale = canvas.minimumScale {
