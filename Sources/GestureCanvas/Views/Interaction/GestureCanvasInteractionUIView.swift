@@ -79,10 +79,9 @@ final class GestureCanvasInteractionUIView: UIView {
         let pan = UIPanGestureRecognizer(target: self, action: #selector(didPan(_:)))
         pan.allowedScrollTypesMask = .continuous
         pan.allowedTouchTypes = [
-//            NSNumber(value: UITouch.TouchType.direct.rawValue),
             NSNumber(value: UITouch.TouchType.indirectPointer.rawValue),
-//            NSNumber(value: UITouch.TouchType.pencil.rawValue)
         ]
+        pan.minimumNumberOfTouches = 2
         pan.delegate = self
         addGestureRecognizer(pan)
         
@@ -152,7 +151,10 @@ final class GestureCanvasInteractionUIView: UIView {
             }
             canvas.isZooming = true
         case .changed:
-//            guard recognizer.numberOfTouches == 2 else { break }
+            /// Avoid `numberOfTouches == 1` when releasing the pinch.
+            let directTouchCount: Int = 2
+            let indirectTouchCount: Int = 0
+            guard [directTouchCount, indirectTouchCount].contains(recognizer.numberOfTouches) else { break }
             guard let startPinch: Pinch else { break }
             var scale: CGFloat = startPinch.coordinate.scale * recognizer.scale
             if let minimumScale = canvas.minimumScale {
