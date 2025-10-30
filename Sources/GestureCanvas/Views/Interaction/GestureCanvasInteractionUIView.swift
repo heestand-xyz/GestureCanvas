@@ -237,9 +237,7 @@ final class GestureCanvasInteractionUIView: UIView {
     
     override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         super.pressesEnded(presses, with: event)
-        if let flags: UIKeyModifierFlags = event?.modifierFlags {
-            remove(flags: flags)
-        }
+        canvas.keyboardFlags = []
     }
     
     override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -259,21 +257,6 @@ final class GestureCanvasInteractionUIView: UIView {
         }
         if flags.contains(.alternate) {
             canvas.keyboardFlags.insert(.option)
-        }
-    }
-
-    func remove(flags: UIKeyModifierFlags) {
-        if flags.contains(.command) {
-            canvas.keyboardFlags.remove(.command)
-        }
-        if flags.contains(.control) {
-            canvas.keyboardFlags.remove(.control)
-        }
-        if flags.contains(.shift) {
-            canvas.keyboardFlags.remove(.shift)
-        }
-        if flags.contains(.alternate) {
-            canvas.keyboardFlags.remove(.option)
         }
     }
 }
