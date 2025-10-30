@@ -13,6 +13,16 @@ import CoreGraphicsExtensions
 
 final class GestureCanvasInteractionUIView: UIView {
     
+    override var canBecomeFirstResponder: Bool { true }
+    override var canResignFirstResponder: Bool { true }
+    
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            _ = becomeFirstResponder()
+        }
+    }
+    
     private var interaction: UIEditMenuInteraction?
     
     let canvas: GestureCanvas
@@ -32,6 +42,8 @@ final class GestureCanvasInteractionUIView: UIView {
         let coordinate: GestureCanvasCoordinate
     }
     private var startPan: Pan?
+    
+    // MARK: - Init -
 
     public init(canvas: GestureCanvas, contentView: UIView) {
     
@@ -49,12 +61,16 @@ final class GestureCanvasInteractionUIView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
+    // MARK: - Setup
+    
     private func setup() {
         guard let delegate: UIEditMenuInteractionDelegate = canvas.delegate?.gestureCanvasEditMenuInteractionDelegate() else { return }
         let interaction = UIEditMenuInteraction(delegate: delegate)
         addInteraction(interaction)
         self.interaction = interaction
     }
+    
+    // MARK: - Layout
     
     private func layout() {
         
@@ -69,6 +85,8 @@ final class GestureCanvasInteractionUIView: UIView {
             contentView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
         ])
     }
+    
+    // MARK: - Gestures
     
     private func addGestures() {
         
@@ -178,6 +196,84 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.isZooming = false
         @unknown default:
             break
+        }
+    }
+    
+    // MARK: - Touches
+
+#if os(iOS)
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        for touch in touches where touch.type == .indirectPointer {
+            canvas.isIndirectTouching = true
+            break
+        }
+    }
+    
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesEnded(touches, with: event)
+        for touch in touches where touch.type == .indirectPointer {
+            canvas.isIndirectTouching = false
+            break
+        }
+    }
+    
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesCancelled(touches, with: event)
+        canvas.isIndirectTouching = false
+    }
+    
+#endif
+    
+    // MARK: - Presses
+    
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        super.pressesBegan(presses, with: event)
+        if let flags: UIKeyModifierFlags = event?.modifierFlags {
+            add(flags: flags)
+        }
+    }
+    
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        super.pressesEnded(presses, with: event)
+        if let flags: UIKeyModifierFlags = event?.modifierFlags {
+            remove(flags: flags)
+        }
+    }
+    
+    override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        super.pressesCancelled(presses, with: event)
+        canvas.keyboardFlags = []
+    }
+    
+    func add(flags: UIKeyModifierFlags) {
+        if flags.contains(.command) {
+            canvas.keyboardFlags.insert(.command)
+        }
+        if flags.contains(.control) {
+            canvas.keyboardFlags.insert(.control)
+        }
+        if flags.contains(.shift) {
+            canvas.keyboardFlags.insert(.shift)
+        }
+        if flags.contains(.alternate) {
+            canvas.keyboardFlags.insert(.option)
+        }
+    }
+
+    func remove(flags: UIKeyModifierFlags) {
+        if flags.contains(.command) {
+            canvas.keyboardFlags.remove(.command)
+        }
+        if flags.contains(.control) {
+            canvas.keyboardFlags.remove(.control)
+        }
+        if flags.contains(.shift) {
+            canvas.keyboardFlags.remove(.shift)
+        }
+        if flags.contains(.alternate) {
+            canvas.keyboardFlags.remove(.option)
         }
     }
 }

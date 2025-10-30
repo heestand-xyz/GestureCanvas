@@ -18,13 +18,13 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
     
-#if os(macOS)
-    func gestureCanvasTrackpadLightMultiTap(_ canvas: GestureCanvas, tapCount: Int, at location: CGPoint)
-    
     func gestureCanvasDragSelectionStarted(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionUpdated(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDragSelectionEnded(_ canvas: GestureCanvas, at location: CGPoint)
 
+#if os(macOS)
+    func gestureCanvasTrackpadLightMultiTap(_ canvas: GestureCanvas, tapCount: Int, at location: CGPoint)
+    
     func gestureCanvasScrollStarted(_ canvas: GestureCanvas)
     func gestureCanvasScrollEnded(_ canvas: GestureCanvas)
 
@@ -88,12 +88,20 @@ public final class GestureCanvas {
         }
     }
     
+#if os(iOS)
+    internal var isIndirectTouching: Bool = false
+#endif
+    internal private(set) var isSelecting: Bool = false
+    
+    public internal(set) var keyboardFlags: Set<GestureCanvasKeyboardFlag> = []
+    
 #if os(macOS)
     @ObservationIgnored
     public var trackpadEnabled: Bool = true
+    
     @ObservationIgnored
     public internal(set) var mouseLocation: CGPoint?
-    public internal(set) var keyboardFlags: Set<GestureCanvasKeyboardFlag> = []
+    
     /// Magnifying with 2 fingers on the trackpad.
     internal var isMagnifying: Bool = false
     public internal(set) var isScrolling: Bool = false {
@@ -231,18 +239,10 @@ extension GestureCanvas {
     }
 }
 
-#if os(macOS)
-
-extension GestureCanvas {
-    /// A light tap with multiple fingers on trackpad.
-    func multiTap(count: Int, at location: CGPoint) {
-        delegate?.gestureCanvasTrackpadLightMultiTap(self, tapCount: count, at: location)
-    }
-}
-
 extension GestureCanvas {
  
     func dragSelectionStarted(at location: CGPoint) {
+        isSelecting = true
         delegate?.gestureCanvasDragSelectionStarted(self, at: location)
     }
  
@@ -251,7 +251,17 @@ extension GestureCanvas {
     }
  
     func dragSelectionEnded(at location: CGPoint) {
+        isSelecting = false
         delegate?.gestureCanvasDragSelectionEnded(self, at: location)
+    }
+}
+
+#if os(macOS)
+
+extension GestureCanvas {
+    /// A light tap with multiple fingers on trackpad.
+    func multiTap(count: Int, at location: CGPoint) {
+        delegate?.gestureCanvasTrackpadLightMultiTap(self, tapCount: count, at: location)
     }
 }
 

@@ -14,6 +14,8 @@ public struct GestureCanvasGestureView: View {
     
     @State private var startCoordinate: GestureCanvasCoordinate?
     
+    @State private var asSelection: Bool = false
+    
     public var body: some View {
         Color.gray.opacity(0.001)
             .coordinateSpace(GestureCanvasCoordinate.space)
@@ -48,29 +50,43 @@ public struct GestureCanvasGestureView: View {
     
     private func onDragChanged(_ value: DragGesture.Value) {
         if startCoordinate == nil {
+            asSelection = {
 #if os(macOS)
-            canvas.dragSelectionStarted(at: value.startLocation)
+                true
+#elseif os(iOS)
+                canvas.isIndirectTouching
 #else
-            if canvas.isZooming { return }
-            canvas.isPanning = true
+                false
 #endif
+            }()
+            if asSelection {
+                canvas.dragSelectionStarted(at: value.startLocation)
+            } else {
+                if canvas.isZooming { return }
+                if canvas.isSelecting { return }
+                canvas.isPanning = true
+            }
             startCoordinate = canvas.coordinate
         }
-#if os(macOS)
-        canvas.dragSelectionUpdated(at: value.location)
-#else
-        if canvas.isZooming { return }
-        canvas.offset(to: startCoordinate!.offset + value.translation)
-#endif
+        if asSelection {
+            canvas.dragSelectionUpdated(at: value.location)
+        } else {
+            if canvas.isZooming { return }
+            if canvas.isSelecting { return }
+            canvas.offset(to: startCoordinate!.offset + value.translation)
+        }
     }
     
     private func onDragEnded(_ value: DragGesture.Value) {
+        defer {
+            asSelection = false
+        }
         guard startCoordinate != nil else { return }
-#if os(macOS)
-        canvas.dragSelectionEnded(at: value.location)
-#else
-        canvas.isPanning = false
-#endif
+        if asSelection {
+            canvas.dragSelectionEnded(at: value.location)
+        } else {
+            canvas.isPanning = false
+        }
         startCoordinate = nil
     }
 }
