@@ -25,6 +25,10 @@ final class GestureCanvasInteractionUIView: UIView {
     
     private var interaction: UIEditMenuInteraction?
     
+    private var longPressGestureRecognizer: UILongPressGestureRecognizer?
+    private var panGestureRecognizer: UIPanGestureRecognizer?
+    private var pinchGestureRecognizer: UIPinchGestureRecognizer?
+    
     let canvas: GestureCanvas
     
     let contentView: UIView
@@ -93,6 +97,7 @@ final class GestureCanvasInteractionUIView: UIView {
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(didLongPress(_:)))
         longPress.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber]
         addGestureRecognizer(longPress)
+        self.longPressGestureRecognizer = longPress
         
         let pan = UIPanGestureRecognizer(target: self, action: #selector(didPan(_:)))
         pan.allowedScrollTypesMask = .continuous
@@ -102,6 +107,7 @@ final class GestureCanvasInteractionUIView: UIView {
         pan.minimumNumberOfTouches = 2
         pan.delegate = self
         addGestureRecognizer(pan)
+        self.panGestureRecognizer = pan
         
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(didPinch(_:)))
         pinch.allowedTouchTypes = [
@@ -110,6 +116,7 @@ final class GestureCanvasInteractionUIView: UIView {
         ]
         pinch.delegate = self
         addGestureRecognizer(pinch)
+        self.pinchGestureRecognizer = pinch
     }
     
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
@@ -267,7 +274,10 @@ extension GestureCanvasInteractionUIView: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-       true
+        if gestureRecognizer == pinchGestureRecognizer {
+            return true
+        }
+        return false
     }
 }
 
