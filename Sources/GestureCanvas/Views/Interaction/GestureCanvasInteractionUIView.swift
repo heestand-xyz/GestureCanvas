@@ -28,7 +28,7 @@ final class GestureCanvasInteractionUIView: UIView {
     private var longPressGestureRecognizer: UILongPressGestureRecognizer?
     private var panGestureRecognizer: UIPanGestureRecognizer?
     private var pinchGestureRecognizer: UIPinchGestureRecognizer?
-    
+
     let canvas: GestureCanvas
     
     let contentView: UIView
@@ -95,7 +95,9 @@ final class GestureCanvasInteractionUIView: UIView {
     private func addGestures() {
         
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(didLongPress(_:)))
-        longPress.allowedTouchTypes = [UITouch.TouchType.direct.rawValue as NSNumber]
+        longPress.allowedTouchTypes = [
+            UITouch.TouchType.direct.rawValue as NSNumber,
+        ]
         addGestureRecognizer(longPress)
         self.longPressGestureRecognizer = longPress
         
@@ -111,8 +113,8 @@ final class GestureCanvasInteractionUIView: UIView {
         
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(didPinch(_:)))
         pinch.allowedTouchTypes = [
-            NSNumber(value: UITouch.TouchType.direct.rawValue),
-            NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)
+            UITouch.TouchType.direct.rawValue as NSNumber,
+            UITouch.TouchType.indirectPointer.rawValue as NSNumber,
         ]
         pinch.delegate = self
         addGestureRecognizer(pinch)

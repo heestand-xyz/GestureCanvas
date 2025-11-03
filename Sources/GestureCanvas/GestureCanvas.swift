@@ -218,6 +218,7 @@ extension GestureCanvas {
 #if !os(macOS)
 extension GestureCanvas {
     
+    /// Long press or secondary click on iPad trackpad
     public func didLongPressInteraction() {
         lastInteractionLocation = nil
     }
