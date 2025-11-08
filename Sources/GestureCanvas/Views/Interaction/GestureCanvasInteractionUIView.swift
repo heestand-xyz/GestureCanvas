@@ -145,6 +145,7 @@ final class GestureCanvasInteractionUIView: UIView {
                 location: location(),
                 coordinate: canvas.coordinate
             )
+            canvas.isPanning = true
         case .changed:
             guard let startPan: Pan else { break }
             let offset: CGPoint = location() - startPan.location
