@@ -8,7 +8,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     private static let zoomScrollVelocityMultiplier: CGFloat = 0.0075
     private static let middleMouseScrollVelocityMultiplier: CGFloat = 10
-
+    
     var canvas: GestureCanvas
     
     enum ScrollMethod {
@@ -19,7 +19,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     private var scrollTimer: Timer?
     private let scrollTimeout: TimeInterval = 0.15
     private let scrollThreshold: CGFloat = 1.5
-
+    
     @ObservationIgnored
     private var multiTapCount: Int = 0
     @ObservationIgnored
@@ -40,7 +40,7 @@ public class GestureCanvasTrackpadNSView: NSView {
         self.canvas = canvas
         
         self.contentView = contentView
-
+        
         super.init(frame: .zero)
         
         allowedTouchTypes = [.direct, .indirect]
@@ -65,6 +65,19 @@ public class GestureCanvasTrackpadNSView: NSView {
             return $0
         }
         
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidResignActive),
+            name: NSApplication.didResignActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidResignKey),
+            name: NSWindow.didResignKeyNotification,
+            object: nil
+        )
+        
         becomeFirstResponder()
     }
     
@@ -72,6 +85,18 @@ public class GestureCanvasTrackpadNSView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
     
+    @objc private func appDidResignActive() {
+        if scrollMethod != nil {
+            cancelScroll()
+        }
+        canvas.keyboardFlags = []
+    }
+    
+    @objc private func windowDidResignKey() {
+        if scrollMethod != nil {
+            cancelScroll()
+        }
+    }
     
     public override func updateTrackingAreas() {
         let trackingArea = NSTrackingArea(rect: bounds, options: [
