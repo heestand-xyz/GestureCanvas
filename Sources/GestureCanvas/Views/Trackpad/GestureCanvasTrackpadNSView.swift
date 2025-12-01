@@ -67,12 +67,6 @@ public class GestureCanvasTrackpadNSView: NSView {
         
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(appDidResignActive),
-            name: NSApplication.didResignActiveNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
             selector: #selector(windowDidResignKey),
             name: NSWindow.didResignKeyNotification,
             object: nil
@@ -85,17 +79,13 @@ public class GestureCanvasTrackpadNSView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    @objc private func appDidResignActive() {
+    @objc private func windowDidResignKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window == self.window else { return }
         if scrollMethod != nil {
             cancelScroll()
         }
         canvas.keyboardFlags = []
-    }
-    
-    @objc private func windowDidResignKey() {
-        if scrollMethod != nil {
-            cancelScroll()
-        }
     }
     
     public override func updateTrackingAreas() {
