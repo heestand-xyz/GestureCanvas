@@ -45,7 +45,7 @@ public protocol GestureCanvasDelegate: AnyObject {
 
 @MainActor
 @Observable
-public final class GestureCanvas {
+public final class GestureCanvas: Sendable {
     
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
