@@ -146,14 +146,16 @@ final class GestureCanvasInteractionUIView: UIView {
                 coordinate: canvas.coordinate
             )
             canvas.isPanning = true
+            canvas.gestureStart()
         case .changed:
             guard let startPan: Pan else { break }
             let offset: CGPoint = location() - startPan.location
             var coordinate = canvas.coordinate
             coordinate.offset = startPan.coordinate.offset + offset
-            canvas.move(to: coordinate)
+            canvas.gestureUpdate(to: coordinate, at: location())
         case .ended, .cancelled, .failed:
             guard startPan != nil else { return }
+            canvas.gestureEnded(at: location())
             startPan = nil
             canvas.isPanning = false
         @unknown default:
@@ -178,6 +180,7 @@ final class GestureCanvasInteractionUIView: UIView {
                 canvas.isPanning = false
             }
             canvas.isZooming = true
+            canvas.gestureStart()
         case .changed:
             /// Avoid `numberOfTouches == 1` when releasing the pinch.
             let directTouchCount: Int = 2
@@ -199,9 +202,10 @@ final class GestureCanvasInteractionUIView: UIView {
             var coordinate = canvas.coordinate
             coordinate.offset = startPinch.coordinate.offset + offset + scaleOffset
             coordinate.scale = scale
-            canvas.move(to: coordinate)
+            canvas.gestureUpdate(to: coordinate, at: location())
         case .ended, .cancelled, .failed:
             guard startPinch != nil else { return }
+            canvas.gestureEnded(at: location())
             startPinch = nil
             canvas.isZooming = false
         @unknown default:

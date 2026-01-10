@@ -49,7 +49,7 @@ public final class GestureCanvas: Sendable {
     
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
-    
+
     public private(set) var coordinate: GestureCanvasCoordinate {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
@@ -60,6 +60,8 @@ public final class GestureCanvas: Sendable {
     public var minimumScale: CGFloat? = 0.25
     @ObservationIgnored
     public var maximumScale: CGFloat? = 4.0
+    
+    public var limitZoomIn: Bool = false
     
     public internal(set) var size: CGSize = .one
     
@@ -125,7 +127,7 @@ public final class GestureCanvas: Sendable {
     private var secondaryDragStartLocation: CGPoint?
     private var secondaryDragStartCoordinate: GestureCanvasCoordinate?
 #endif
-
+    
     /// Use to offset coordinate if origin is not in the container view origin.
     public var zoomCoordinateOffset: CGPoint = .zero
     
@@ -162,10 +164,58 @@ extension GestureCanvas {
         if isAnimating {
             cancelMoveAnimation()
         }
-        self.coordinate = coordinate
+        self.coordinate = if limitZoomIn {
+            hardLimitZoomIn(
+                coordinate: coordinate
+            )
+        } else {
+            coordinate
+        }
+    }
+    
+    internal func gestureStart() {
+        if isAnimating {
+            cancelMoveAnimation()
+        }
+    }
+    
+    internal func gestureUpdate(to coordinate: GestureCanvasCoordinate, at location: CGPoint) {
+        self.coordinate = if limitZoomIn {
+            limitZoomIn(
+                coordinate: coordinate,
+                at: location
+            )
+        } else {
+            coordinate
+        }
+    }
+    
+    internal func gestureEnded(at location: CGPoint) {
+        if limitZoomIn, coordinate.scale > 1.0 {
+            let hardLimitedCoordinate: GestureCanvasCoordinate = hardLimitZoomIn(
+                coordinate: coordinate,
+                at: location
+            )
+            Task {
+                await animate(
+                    to: hardLimitedCoordinate,
+                    autoLimit: false
+                )
+            }
+        }
     }
     
     public func animate(to coordinate: GestureCanvasCoordinate) async {
+        await animate(
+            to: coordinate,
+            autoLimit: true
+        )
+    }
+    
+    private func animate(
+        to coordinate: GestureCanvasCoordinate,
+        autoLimit: Bool
+    ) async {
         if isAnimating {
             cancelMoveAnimation()
         }
@@ -173,12 +223,17 @@ extension GestureCanvas {
         moveAnimator = DisplayLinkAnimator(duration: animationDuration)
         await withCheckedContinuation { continuation in
             moveAnimator?.run { [weak self] progress in
+                guard let self else { return }
                 let fraction = progress.fractionWithEaseInOut(iterations: 2)
                 let newCoordinate = GestureCanvasCoordinate(
                     offset: oldCoordinate.offset * (1.0 - fraction) + coordinate.offset * fraction,
                     scale: oldCoordinate.scale * (1.0 - fraction) + coordinate.scale * fraction
                 )
-                self?.coordinate = newCoordinate
+                self.coordinate = if limitZoomIn, autoLimit {
+                    hardLimitZoomIn(coordinate: newCoordinate)
+                } else {
+                    newCoordinate
+                }
             } completion: { [weak self] _ in
                 self?.moveAnimator = nil
                 continuation.resume()
@@ -241,16 +296,16 @@ extension GestureCanvas {
 }
 
 extension GestureCanvas {
- 
+    
     func dragSelectionStarted(at location: CGPoint) {
         isSelecting = true
         delegate?.gestureCanvasDragSelectionStarted(self, at: location)
     }
- 
+    
     func dragSelectionUpdated(at location: CGPoint) {
         delegate?.gestureCanvasDragSelectionUpdated(self, at: location)
     }
- 
+    
     func dragSelectionEnded(at location: CGPoint) {
         isSelecting = false
         delegate?.gestureCanvasDragSelectionEnded(self, at: location)
@@ -267,12 +322,12 @@ extension GestureCanvas {
 }
 
 extension GestureCanvas {
- 
+    
     func dragSecondaryStarted(at location: CGPoint) {
         secondaryDragStartLocation = location
         secondaryDragStartCoordinate = coordinate
     }
- 
+    
     func dragSecondaryUpdated(at location: CGPoint) {
         guard let startLocation: CGPoint = secondaryDragStartLocation else { return }
         guard var coordinate: GestureCanvasCoordinate = secondaryDragStartCoordinate else { return }
@@ -285,7 +340,7 @@ extension GestureCanvas {
         case ignore
         case context(NSMenu)
     }
- 
+    
     @MainActor
     func dragSecondaryEnded(at location: CGPoint) -> SecondaryEndAction {
         defer {
@@ -302,3 +357,44 @@ extension GestureCanvas {
 }
 
 #endif
+
+// MARK: Limit Zoom In
+
+extension GestureCanvas {
+    
+    private func hardLimitZoomIn(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint? = nil
+    ) -> GestureCanvasCoordinate {
+        limitZoomIn(
+            coordinate: coordinate,
+            at: location ?? (size.asPoint / 2),
+            limitScale: 0.0
+        )
+    }
+    
+    private func limitZoomIn(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint,
+        limitScale: CGFloat = 0.5
+    ) -> GestureCanvasCoordinate {
+        guard coordinate.scale > 1.0 else { return coordinate }
+        var scale: CGFloat = 1.0 + (coordinate.scale - 1.0) * limitScale
+        if let minimumScale = minimumScale {
+            scale = max(scale, minimumScale)
+        }
+        if let maximumScale = maximumScale {
+            scale = min(scale, maximumScale)
+        }
+        // TODO: Check offset calculation
+        let magnification: CGFloat = scale / coordinate.scale
+        let locationOffset: CGPoint = coordinate.offset - location
+        let scaledLocationOffset: CGPoint = locationOffset * magnification
+        let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
+        let offset: CGPoint = coordinate.offset + scaleOffset
+        return GestureCanvasCoordinate(
+            offset: offset,
+            scale: scale
+        )
+    }
+}

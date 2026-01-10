@@ -32,6 +32,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     private let contentView: NSView?
     
     private var startCoordinate: GestureCanvasCoordinate?
+    private var targetCoordinateScale: CGFloat?
     private var magnification: CGFloat?
     
     public init(canvas: GestureCanvas,
@@ -155,12 +156,14 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     private func didStartScroll(withScrollWheel: Bool) {
         startCoordinate = canvas.coordinate
+        targetCoordinateScale = canvas.coordinate.scale
         canvas.isScrolling = true
         if scrollMethod == .zoom {
             canvas.isZooming = true
         } else {
             canvas.isPanning = true
         }
+        canvas.gestureStart()
     }
     
     private func didScroll(by velocity: CGVector) {
@@ -173,8 +176,9 @@ public class GestureCanvasTrackpadNSView: NSView {
         }
         
         if scrollMethod == .zoom {
+            guard let targetCoordinateScale: CGFloat else { return }
             let magnification: CGFloat = 1.0 + velocity.dy * Self.zoomScrollVelocityMultiplier
-            var scale: CGFloat = canvas.coordinate.scale * magnification
+            var scale: CGFloat = targetCoordinateScale * magnification
             if let minimumScale = canvas.minimumScale {
                 scale = max(scale, minimumScale)
             }
@@ -185,9 +189,12 @@ public class GestureCanvasTrackpadNSView: NSView {
             coordinate.scale = scale
             let offsetMagnification: CGFloat = scale / startCoordinate.scale
             coordinate.offset = (startCoordinate.offset - location) * offsetMagnification + location
-            canvas.move(to: coordinate)
+            canvas.gestureUpdate(to: coordinate, at: location)
+            self.targetCoordinateScale = scale
         } else {
-            canvas.offset(by: velocity.asPoint)
+            var coordinate = canvas.coordinate
+            coordinate.offset += velocity.asPoint
+            canvas.gestureUpdate(to: coordinate, at: location)
         }
     }
     
@@ -198,6 +205,9 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     private func didEndScroll() {
+        if let location: CGPoint = getMouseLocation() {
+            canvas.gestureEnded(at: location)
+        }
         startCoordinate = nil
         canvas.isScrolling = false
         if scrollMethod == .zoom {
@@ -213,9 +223,9 @@ public class GestureCanvasTrackpadNSView: NSView {
     public override func magnify(with event: NSEvent) {
         guard window?.isKeyWindow == true else { return }
         guard canvas.trackpadEnabled else { return }
-        guard var mouseLocation: CGPoint = getMouseLocation() else { return }
-        mouseLocation += canvas.zoomCoordinateOffset
-        guard bounds.contains(mouseLocation) else { return }
+        guard var location: CGPoint = getMouseLocation() else { return }
+        location += canvas.zoomCoordinateOffset
+        guard bounds.contains(location) else { return }
         switch event.phase {
         case .began:
             if canvas.isScrolling {
@@ -226,6 +236,7 @@ public class GestureCanvasTrackpadNSView: NSView {
             magnification = 1.0
             canvas.isMagnifying = true
             canvas.isZooming = true
+            canvas.gestureStart()
         case .changed:
             guard let startCoordinate else { return }
             guard var magnification else { return }
@@ -240,11 +251,12 @@ public class GestureCanvasTrackpadNSView: NSView {
             var coordinate = canvas.coordinate
             coordinate.scale = scale
             let finalMagnification: CGFloat = scale / startCoordinate.scale
-            coordinate.offset = (startCoordinate.offset - mouseLocation) * finalMagnification + mouseLocation
-            canvas.move(to: coordinate)
+            coordinate.offset = (startCoordinate.offset - location) * finalMagnification + location
+            canvas.gestureUpdate(to: coordinate, at: location)
             self.magnification = magnification
         case .ended, .cancelled:
             guard startCoordinate != nil else { return }
+            canvas.gestureEnded(at: location)
             startCoordinate = nil
             magnification = nil
             canvas.isMagnifying = false
