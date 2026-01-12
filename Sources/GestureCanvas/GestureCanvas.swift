@@ -131,7 +131,7 @@ public final class GestureCanvas: Sendable {
     /// Use to offset coordinate if origin is not in the container view origin.
     public var zoomCoordinateOffset: CGPoint = .zero
     
-    public var animationDuration: TimeInterval = 0.5
+    public var animationDuration: TimeInterval = 1.0 / 3.0
     private var moveAnimator: DisplayLinkAnimator?
     public var isAnimating: Bool {
         moveAnimator != nil
@@ -386,7 +386,6 @@ extension GestureCanvas {
         if let maximumScale = maximumScale {
             scale = min(scale, maximumScale)
         }
-        // TODO: Check offset calculation
         let magnification: CGFloat = scale / coordinate.scale
         let locationOffset: CGPoint = coordinate.offset - location
         let scaledLocationOffset: CGPoint = locationOffset * magnification
