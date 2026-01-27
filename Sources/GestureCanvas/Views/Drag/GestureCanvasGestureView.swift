@@ -66,7 +66,7 @@ public struct GestureCanvasGestureView: View {
                 if canvas.isSelecting { return }
                 canvas.isPanning = true
             }
-            startCoordinate = canvas.coordinate
+            startCoordinate = canvas.coordinate.unlimited
         }
         if asSelection {
             canvas.dragSelectionUpdated(at: value.location)

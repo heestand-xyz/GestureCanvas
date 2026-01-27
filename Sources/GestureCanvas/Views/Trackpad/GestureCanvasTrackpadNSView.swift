@@ -155,8 +155,8 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     private func didStartScroll(withScrollWheel: Bool) {
-        startCoordinate = canvas.coordinate
-        targetCoordinateScale = canvas.coordinate.scale
+        startCoordinate = canvas.coordinate.unlimited
+        targetCoordinateScale = canvas.coordinate.unlimited.scale
         canvas.isScrolling = true
         if scrollMethod == .zoom {
             canvas.isZooming = true
@@ -185,14 +185,15 @@ public class GestureCanvasTrackpadNSView: NSView {
             if let maximumScale = canvas.maximumScale {
                 scale = min(scale, maximumScale)
             }
-            var coordinate = canvas.coordinate
-            coordinate.scale = scale
             let offsetMagnification: CGFloat = scale / startCoordinate.scale
-            coordinate.offset = (startCoordinate.offset - location) * offsetMagnification + location
+            let coordinate = GestureCanvasCoordinate(
+                offset: (startCoordinate.offset - location) * offsetMagnification + location,
+                scale: scale
+            )
             canvas.gestureUpdate(to: coordinate, at: location)
             self.targetCoordinateScale = scale
         } else {
-            var coordinate = canvas.coordinate
+            var coordinate = canvas.coordinate.unlimited
             coordinate.offset += velocity.asPoint
             canvas.gestureUpdate(to: coordinate, at: location)
         }
@@ -232,7 +233,7 @@ public class GestureCanvasTrackpadNSView: NSView {
                 cancelScroll()
             }
             guard startCoordinate == nil else { return }
-            startCoordinate = canvas.coordinate
+            startCoordinate = canvas.coordinate.unlimited
             magnification = 1.0
             canvas.isMagnifying = true
             canvas.isZooming = true
@@ -248,10 +249,11 @@ public class GestureCanvasTrackpadNSView: NSView {
             if let maximumScale = canvas.maximumScale {
                 scale = min(scale, maximumScale)
             }
-            var coordinate = canvas.coordinate
-            coordinate.scale = scale
             let finalMagnification: CGFloat = scale / startCoordinate.scale
-            coordinate.offset = (startCoordinate.offset - location) * finalMagnification + location
+            let coordinate = GestureCanvasCoordinate(
+                offset: (startCoordinate.offset - location) * finalMagnification + location,
+                scale: scale
+            )
             canvas.gestureUpdate(to: coordinate, at: location)
             self.magnification = magnification
         case .ended, .cancelled:

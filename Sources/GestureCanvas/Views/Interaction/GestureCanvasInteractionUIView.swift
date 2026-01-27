@@ -143,14 +143,14 @@ final class GestureCanvasInteractionUIView: UIView {
             }
             startPan = Pan(
                 location: location(),
-                coordinate: canvas.coordinate
+                coordinate: canvas.coordinate.unlimited
             )
             canvas.isPanning = true
             canvas.gestureStart()
         case .changed:
             guard let startPan: Pan else { break }
             let offset: CGPoint = location() - startPan.location
-            var coordinate = canvas.coordinate
+            var coordinate = canvas.coordinate.unlimited
             coordinate.offset = startPan.coordinate.offset + offset
             canvas.gestureUpdate(to: coordinate, at: location())
         case .ended, .cancelled, .failed:
@@ -174,7 +174,7 @@ final class GestureCanvasInteractionUIView: UIView {
             guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
             startPinch = Pinch(
                 location: location(),
-                coordinate: canvas.coordinate
+                coordinate: canvas.coordinate.unlimited
             )
             if canvas.isPanning {
                 canvas.isPanning = false
@@ -199,9 +199,10 @@ final class GestureCanvasInteractionUIView: UIView {
             let locationOffset: CGPoint = startPinch.coordinate.offset - startPinch.location
             let scaledLocationOffset: CGPoint = locationOffset * magnification
             let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
-            var coordinate = canvas.coordinate
-            coordinate.offset = startPinch.coordinate.offset + offset + scaleOffset
-            coordinate.scale = scale
+            let coordinate = GestureCanvasCoordinate(
+                offset: startPinch.coordinate.offset + offset + scaleOffset,
+                scale: scale
+            )
             canvas.gestureUpdate(to: coordinate, at: location())
         case .ended, .cancelled, .failed:
             guard startPinch != nil else { return }
