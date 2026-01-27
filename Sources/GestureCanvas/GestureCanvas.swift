@@ -216,6 +216,11 @@ extension GestureCanvas {
         to coordinate: GestureCanvasCoordinate,
         autoLimit: Bool
     ) async {
+        let targetCoordinate: GestureCanvasCoordinate = if limitZoomIn, autoLimit {
+            hardLimitZoomIn(coordinate: coordinate)
+        } else {
+            coordinate
+        }
         if isAnimating {
             cancelMoveAnimation()
         }
@@ -226,14 +231,10 @@ extension GestureCanvas {
                 guard let self else { return }
                 let fraction = progress.fractionWithEaseInOut(iterations: 2)
                 let newCoordinate = GestureCanvasCoordinate(
-                    offset: oldCoordinate.offset * (1.0 - fraction) + coordinate.offset * fraction,
-                    scale: oldCoordinate.scale * (1.0 - fraction) + coordinate.scale * fraction
+                    offset: oldCoordinate.offset * (1.0 - fraction) + targetCoordinate.offset * fraction,
+                    scale: oldCoordinate.scale * (1.0 - fraction) + targetCoordinate.scale * fraction
                 )
-                self.coordinate = if limitZoomIn, autoLimit {
-                    hardLimitZoomIn(coordinate: newCoordinate)
-                } else {
-                    newCoordinate
-                }
+                self.coordinate = newCoordinate
             } completion: { [weak self] _ in
                 self?.moveAnimator = nil
                 continuation.resume()
