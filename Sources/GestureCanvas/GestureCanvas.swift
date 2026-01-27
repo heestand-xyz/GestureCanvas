@@ -37,10 +37,15 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
 #endif
     
-    func gestureCanvasDidStartPan(_ canvas: GestureCanvas)
-    func gestureCanvasDidEndPan(_ canvas: GestureCanvas)
-    func gestureCanvasDidStartZoom(_ canvas: GestureCanvas)
-    func gestureCanvasDidEndZoom(_ canvas: GestureCanvas)
+    func gestureCanvasDidStartPan(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDidUpdatePan(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDidEndPan(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDidCancelPan(_ canvas: GestureCanvas)
+    
+    func gestureCanvasDidStartZoom(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDidUpdateZoom(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDidEndZoom(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasDidCancelZoom(_ canvas: GestureCanvas)
 }
 
 @MainActor
@@ -68,34 +73,53 @@ public final class GestureCanvas: Sendable {
     public var minimumScale: CGFloat? = 0.25
     @ObservationIgnored
     public var maximumScale: CGFloat? = 4.0
-    
+        
     public var limitZoomIn: Bool = false
+    /// A fraction of what the limited scale will be beyond scale of 1.0.
+    nonisolated public static let limitScale: CGFloat = 0.25
     
     public internal(set) var size: CGSize = .one
     
-    @available(*, deprecated, renamed: "isZooming")
-    public var isPinching: Bool {
-        isZooming
+    public private(set) var isPanning: Bool = false
+    
+    func startPan(at location: CGPoint) {
+        isPanning = true
+        delegate?.gestureCanvasDidStartPan(self, at: location)
     }
     
-    public internal(set) var isPanning: Bool = false {
-        didSet {
-            if isPanning {
-                delegate?.gestureCanvasDidStartPan(self)
-            } else {
-                delegate?.gestureCanvasDidEndPan(self)
-            }
-        }
+    func updatePan(at location: CGPoint) {
+        delegate?.gestureCanvasDidUpdatePan(self, at: location)
     }
     
-    public internal(set) var isZooming: Bool = false {
-        didSet {
-            if isZooming {
-                delegate?.gestureCanvasDidStartZoom(self)
-            } else {
-                delegate?.gestureCanvasDidEndZoom(self)
-            }
-        }
+    func endPan(at location: CGPoint) {
+        isPanning = false
+        delegate?.gestureCanvasDidEndPan(self, at: location)
+    }
+    
+    func cancelPan() {
+        isPanning = false
+        delegate?.gestureCanvasDidCancelPan(self)
+    }
+    
+    public private(set) var isZooming: Bool = false
+    
+    func startZoom(at location: CGPoint) {
+        isZooming = true
+        delegate?.gestureCanvasDidStartZoom(self, at: location)
+    }
+    
+    func updateZoom(at location: CGPoint) {
+        delegate?.gestureCanvasDidUpdateZoom(self, at: location)
+    }
+    
+    func endZoom(at location: CGPoint) {
+        isZooming = false
+        delegate?.gestureCanvasDidEndZoom(self, at: location)
+    }
+    
+    func cancelZoom() {
+        isZooming = false
+        delegate?.gestureCanvasDidCancelZoom(self)
     }
     
 #if os(iOS)
@@ -208,25 +232,16 @@ extension GestureCanvas {
             )
             Task {
                 await animate(
-                    to: hardLimitedCoordinate,
-                    autoLimit: false
+                    to: hardLimitedCoordinate
                 )
             }
         }
     }
     
-    public func animate(to coordinate: GestureCanvasCoordinate) async {
-        await animate(
-            to: coordinate,
-            autoLimit: true
-        )
-    }
-    
-    private func animate(
-        to coordinate: GestureCanvasCoordinate,
-        autoLimit: Bool
+    public func animate(
+        to coordinate: GestureCanvasCoordinate
     ) async {
-        let targetCoordinate: GestureCanvasCoordinate = if limitZoomIn, autoLimit {
+        let targetCoordinate: GestureCanvasCoordinate = if limitZoomIn {
             hardLimitZoomIn(coordinate: coordinate)
         } else {
             coordinate
@@ -245,7 +260,7 @@ extension GestureCanvas {
                     offset: oldCoordinate.offset * (1.0 - fraction) + targetCoordinate.offset * fraction,
                     scale: oldCoordinate.scale * (1.0 - fraction) + targetCoordinate.scale * fraction
                 )
-                if limitZoomIn, autoLimit {
+                if limitZoomIn {
                     let newUnlimitedCoordinate = GestureCanvasCoordinate(
                         offset: oldUnlimitedCoordinate.offset * (1.0 - fraction) + targetCoordinate.offset * fraction,
                         scale: oldUnlimitedCoordinate.scale * (1.0 - fraction) + targetCoordinate.scale * fraction
@@ -259,7 +274,7 @@ extension GestureCanvas {
                 }
             } completion: { [weak self] completed in
                 guard let self else { return }
-                if completed, limitZoomIn, autoLimit {
+                if completed, limitZoomIn {
                     self.coordinate = .unlimited(targetCoordinate)
                 }
                 moveAnimator = nil
@@ -424,7 +439,7 @@ extension GestureCanvas {
     public func softLimitZoomIn(
         coordinate: GestureCanvasCoordinate,
         at location: CGPoint,
-        limitScale: CGFloat = 0.5
+        limitScale: CGFloat = limitScale
     ) -> GestureCanvasCoordinate {
         Self.softLimitZoomIn(
             coordinate: coordinate,
@@ -439,7 +454,7 @@ extension GestureCanvas {
     public static func softLimitZoomIn(
         coordinate: GestureCanvasCoordinate,
         at location: CGPoint,
-        limitScale: CGFloat = 0.5,
+        limitScale: CGFloat = limitScale,
         minimumScale: CGFloat?,
         maximumScale: CGFloat?
     ) -> GestureCanvasCoordinate {

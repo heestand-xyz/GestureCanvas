@@ -131,9 +131,7 @@ final class GestureCanvasInteractionUIView: UIView {
     }
     
     @objc private func didPan(_ recognizer: UIPanGestureRecognizer) {
-        func location() -> CGPoint {
-            recognizer.location(in: self) + canvas.zoomCoordinateOffset
-        }
+        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
             break
@@ -142,44 +140,43 @@ final class GestureCanvasInteractionUIView: UIView {
                 return
             }
             startPan = Pan(
-                location: location(),
+                location: location,
                 coordinate: canvas.coordinate.unlimited
             )
-            canvas.isPanning = true
+            canvas.startPan(at: location)
             canvas.gestureStart()
         case .changed:
             guard let startPan: Pan else { break }
-            let offset: CGPoint = location() - startPan.location
+            let offset: CGPoint = location - startPan.location
             var coordinate = canvas.coordinate.unlimited
             coordinate.offset = startPan.coordinate.offset + offset
-            canvas.gestureUpdate(to: coordinate, at: location())
+            canvas.gestureUpdate(to: coordinate, at: location)
+            canvas.updatePan(at: location)
         case .ended, .cancelled, .failed:
             guard startPan != nil else { return }
-            canvas.gestureEnded(at: location())
+            canvas.gestureEnded(at: location)
             startPan = nil
-            canvas.isPanning = false
+            canvas.endPan(at: location)
         @unknown default:
             break
         }
     }
     
     @objc private func didPinch(_ recognizer: UIPinchGestureRecognizer) {
-        func location() -> CGPoint {
-            recognizer.location(in: self) + canvas.zoomCoordinateOffset
-        }
+        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
             break
         case .began:
             guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
             startPinch = Pinch(
-                location: location(),
+                location: location,
                 coordinate: canvas.coordinate.unlimited
             )
             if canvas.isPanning {
-                canvas.isPanning = false
+                canvas.cancelPan()
             }
-            canvas.isZooming = true
+            canvas.startZoom(at: location)
             canvas.gestureStart()
         case .changed:
             /// Avoid `numberOfTouches == 1` when releasing the pinch.
@@ -195,7 +192,7 @@ final class GestureCanvasInteractionUIView: UIView {
                 scale = min(scale, maximumScale)
             }
             let magnification: CGFloat = scale / startPinch.coordinate.scale
-            let offset: CGPoint = location() - startPinch.location
+            let offset: CGPoint = location - startPinch.location
             let locationOffset: CGPoint = startPinch.coordinate.offset - startPinch.location
             let scaledLocationOffset: CGPoint = locationOffset * magnification
             let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
@@ -203,12 +200,13 @@ final class GestureCanvasInteractionUIView: UIView {
                 offset: startPinch.coordinate.offset + offset + scaleOffset,
                 scale: scale
             )
-            canvas.gestureUpdate(to: coordinate, at: location())
+            canvas.gestureUpdate(to: coordinate, at: location)
+            canvas.updateZoom(at: location)
         case .ended, .cancelled, .failed:
             guard startPinch != nil else { return }
-            canvas.gestureEnded(at: location())
+            canvas.gestureEnded(at: location)
             startPinch = nil
-            canvas.isZooming = false
+            canvas.endZoom(at: location)
         @unknown default:
             break
         }
