@@ -40,6 +40,8 @@ final class GestureCanvasInteractionUIView: UIView {
         let coordinate: GestureCanvasCoordinate
     }
     private var startPinch: Pinch?
+    /// `0` or `2` touches, not `1`.
+    private var lastPinchLocation: CGPoint?
 
     struct Pan {
         let location: CGPoint
@@ -204,13 +206,16 @@ final class GestureCanvasInteractionUIView: UIView {
             )
             canvas.gestureUpdate(to: coordinate, at: location)
             canvas.updateZoom(at: location)
+            lastPinchLocation = location
         case .ended, .cancelled, .failed:
             guard startPinch != nil else { return }
             startPinch = nil
-            canvas.willEndZoom(at: location)
+            let pinchLocation: CGPoint = lastPinchLocation ?? location
+            lastPinchLocation = nil
+            canvas.willEndZoom(at: pinchLocation)
             Task {
-                await canvas.gestureEnded(at: location)
-                canvas.didEndZoom(at: location)
+                await canvas.gestureEnded(at: pinchLocation)
+                canvas.didEndZoom(at: pinchLocation)
             }
         @unknown default:
             break
