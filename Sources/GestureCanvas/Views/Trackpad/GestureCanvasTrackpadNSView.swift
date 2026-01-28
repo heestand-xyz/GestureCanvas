@@ -210,15 +210,20 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     private func didEndScroll() {
         guard let location: CGPoint = getMouseLocation() else { return }
-        canvas.gestureEnded(at: location)
         startCoordinate = nil
+        scrollMethod = nil
         canvas.isScrolling = false
         if scrollMethod == .zoom {
-            canvas.endZoom(at: location)
+            canvas.willEndZoom(at: location)
         } else {
             canvas.endPan(at: location)
         }
-        scrollMethod = nil
+        Task {
+            await canvas.gestureEnded(at: location)
+            if scrollMethod == .zoom {
+                canvas.didEndZoom(at: location)
+            }
+        }
     }
     
     // MARK: - Magnify
@@ -261,11 +266,14 @@ public class GestureCanvasTrackpadNSView: NSView {
             self.magnification = magnification
         case .ended, .cancelled:
             guard startCoordinate != nil else { return }
-            canvas.gestureEnded(at: location)
             startCoordinate = nil
             magnification = nil
             canvas.isMagnifying = false
-            canvas.endZoom(at: location)
+            canvas.willEndZoom(at: location)
+            Task {
+                await canvas.gestureEnded(at: location)
+                canvas.didEndZoom(at: location)
+            }
         default:
             break
         }

@@ -154,9 +154,11 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.updatePan(at: location)
         case .ended, .cancelled, .failed:
             guard startPan != nil else { return }
-            canvas.gestureEnded(at: location)
             startPan = nil
-            canvas.endPan(at: location)
+            Task {
+                await canvas.gestureEnded(at: location)
+                canvas.endPan(at: location)
+            }
         @unknown default:
             break
         }
@@ -204,9 +206,12 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.updateZoom(at: location)
         case .ended, .cancelled, .failed:
             guard startPinch != nil else { return }
-            canvas.gestureEnded(at: location)
             startPinch = nil
-            canvas.endZoom(at: location)
+            canvas.willEndZoom(at: location)
+            Task {
+                await canvas.gestureEnded(at: location)
+                canvas.didEndZoom(at: location)
+            }
         @unknown default:
             break
         }

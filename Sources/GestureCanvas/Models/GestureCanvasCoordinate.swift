@@ -18,7 +18,10 @@ public struct GestureCanvasCoordinate: Equatable, Sendable, Codable {
 
 extension GestureCanvasCoordinate {
     
-    public static let zero = GestureCanvasCoordinate(offset: .zero, scale: 1.0)
+    public static let `default` = GestureCanvasCoordinate(offset: .zero, scale: 1.0)
+    @available(*, deprecated, renamed: "default")
+   
+    public static let zero: GestureCanvasCoordinate = .default
 }
 
 extension GestureCanvasCoordinate {

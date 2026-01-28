@@ -44,6 +44,7 @@ public protocol GestureCanvasDelegate: AnyObject {
     
     func gestureCanvasDidStartZoom(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDidUpdateZoom(_ canvas: GestureCanvas, at location: CGPoint)
+    func gestureCanvasWillEndZoom(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDidEndZoom(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDidCancelZoom(_ canvas: GestureCanvas)
 }
@@ -88,15 +89,18 @@ public final class GestureCanvas: Sendable {
     }
     
     func updatePan(at location: CGPoint) {
+        guard isPanning else { return }
         delegate?.gestureCanvasDidUpdatePan(self, at: location)
     }
     
     func endPan(at location: CGPoint) {
+        guard isPanning else { return }
         isPanning = false
         delegate?.gestureCanvasDidEndPan(self, at: location)
     }
     
     func cancelPan() {
+        guard isPanning else { return }
         isPanning = false
         delegate?.gestureCanvasDidCancelPan(self)
     }
@@ -109,10 +113,17 @@ public final class GestureCanvas: Sendable {
     }
     
     func updateZoom(at location: CGPoint) {
+        guard isZooming else { return }
         delegate?.gestureCanvasDidUpdateZoom(self, at: location)
     }
     
-    func endZoom(at location: CGPoint) {
+    func willEndZoom(at location: CGPoint) {
+        guard isZooming else { return }
+        delegate?.gestureCanvasWillEndZoom(self, at: location)
+    }
+    
+    func didEndZoom(at location: CGPoint) {
+        guard isZooming else { return }
         isZooming = false
         delegate?.gestureCanvasDidEndZoom(self, at: location)
     }
@@ -138,6 +149,7 @@ public final class GestureCanvas: Sendable {
     
     /// Magnifying with 2 fingers on the trackpad.
     internal var isMagnifying: Bool = false
+    
     public internal(set) var isScrolling: Bool = false {
         didSet {
             if isScrolling {
@@ -224,23 +236,24 @@ extension GestureCanvas {
         }
     }
     
-    internal func gestureEnded(at location: CGPoint) {
+    @discardableResult
+    internal func gestureEnded(at location: CGPoint) async -> Bool {
         if limitZoomIn, coordinate.unlimited.scale > 1.0 {
             let hardLimitedCoordinate: GestureCanvasCoordinate = hardLimitZoomIn(
                 coordinate: coordinate.unlimited,
                 at: location
             )
-            Task {
-                await animate(
-                    to: hardLimitedCoordinate
-                )
-            }
+            return await animate(
+                to: hardLimitedCoordinate
+            )
         }
+        return true
     }
     
+    @discardableResult
     public func animate(
         to coordinate: GestureCanvasCoordinate
-    ) async {
+    ) async -> Bool {
         let targetCoordinate: GestureCanvasCoordinate = if limitZoomIn {
             hardLimitZoomIn(coordinate: coordinate)
         } else {
@@ -252,7 +265,7 @@ extension GestureCanvas {
         let oldCoordinate = self.currentCoordinate
         let oldUnlimitedCoordinate = self.coordinate.unlimited
         moveAnimator = DisplayLinkAnimator(duration: animationDuration)
-        await withCheckedContinuation { continuation in
+        return await withCheckedContinuation { continuation in
             moveAnimator?.run { [weak self] progress in
                 guard let self else { return }
                 let fraction = progress.fractionWithEaseInOut(iterations: 2)
@@ -278,7 +291,7 @@ extension GestureCanvas {
                     self.coordinate = .unlimited(targetCoordinate)
                 }
                 moveAnimator = nil
-                continuation.resume()
+                continuation.resume(returning: completed)
             }
         }
     }
