@@ -25,9 +25,18 @@ final class GestureCanvasInteractionUIView: UIView {
     
     private var interaction: UIEditMenuInteraction?
     
+    /// **Tap**.
+    private var tapGestureRecognizer: UITapGestureRecognizer?
+    /// **Long press** to present edit menu.
     private var longPressGestureRecognizer: UILongPressGestureRecognizer?
+    /// **Pan** on trackpad.
     private var panGestureRecognizer: UIPanGestureRecognizer?
+    /// **Pinch** to zoom.
     private var pinchGestureRecognizer: UIPinchGestureRecognizer?
+    /// Double **tap** and pan to zoom.
+    private var doubleTapGestureRecognizer: UITapGestureRecognizer?
+    /// **Double tap and drag** to zoom.
+    private var doubleTapDragGestureRecognizer: DoubleTapDragGestureRecognizer?
 
     let canvas: GestureCanvas
     
@@ -35,13 +44,13 @@ final class GestureCanvasInteractionUIView: UIView {
     
     private var cancelBag: Set<AnyCancellable> = []
     
-    struct Pinch {
+    struct Zoom {
         let location: CGPoint
         let coordinate: GestureCanvasCoordinate
     }
-    private var startPinch: Pinch?
+    private var startZoom: Zoom?
     /// `0` or `2` touches, not `1`.
-    private var lastPinchLocation: CGPoint?
+    private var lastPinchZoomLocation: CGPoint?
 
     struct Pan {
         let location: CGPoint
@@ -96,6 +105,15 @@ final class GestureCanvasInteractionUIView: UIView {
     
     private func addGestures() {
         
+        let tap = UITapGestureRecognizer(target: self, action: #selector(didTap(_:)))
+        tap.allowedTouchTypes = [
+            UITouch.TouchType.direct.rawValue as NSNumber,
+        ]
+        tap.numberOfTapsRequired = 1
+        tap.delegate = self
+        addGestureRecognizer(tap)
+        self.tapGestureRecognizer = tap
+        
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(didLongPress(_:)))
         longPress.allowedTouchTypes = [
             UITouch.TouchType.direct.rawValue as NSNumber,
@@ -106,7 +124,7 @@ final class GestureCanvasInteractionUIView: UIView {
         let pan = UIPanGestureRecognizer(target: self, action: #selector(didPan(_:)))
         pan.allowedScrollTypesMask = .continuous
         pan.allowedTouchTypes = [
-            NSNumber(value: UITouch.TouchType.indirectPointer.rawValue),
+            UITouch.TouchType.indirectPointer.rawValue as NSNumber,
         ]
         pan.minimumNumberOfTouches = 2
         pan.delegate = self
@@ -121,9 +139,37 @@ final class GestureCanvasInteractionUIView: UIView {
         pinch.delegate = self
         addGestureRecognizer(pinch)
         self.pinchGestureRecognizer = pinch
+        
+        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(didDoubleTap(_:)))
+        doubleTap.allowedTouchTypes = [
+            UITouch.TouchType.direct.rawValue as NSNumber,
+        ]
+        doubleTap.numberOfTapsRequired = 2
+        doubleTap.delegate = self
+        addGestureRecognizer(doubleTap)
+        self.doubleTapGestureRecognizer = doubleTap
+        
+        let doubleTapDrag = DoubleTapDragGestureRecognizer(target: self, action: #selector(didDoubleTapDrag(_:)))
+        doubleTapDrag.delegate = self
+        addGestureRecognizer(doubleTapDrag)
+        doubleTapDragGestureRecognizer = doubleTapDrag
+
+        tap.require(toFail: doubleTapDrag)
+        doubleTap.require(toFail: doubleTapDrag)
+        longPress.require(toFail: doubleTapDrag)
+        tap.require(toFail: doubleTap)
+    }
+    
+    @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
+        if recognizer.state == .ended {
+            print("--------> \(#function)", "ended")
+            let location: CGPoint = recognizer.location(in: contentView)
+            canvas.backgroundTap(at: location)
+        }
     }
     
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
+        print("--------> \(#function)", "...")
         guard recognizer.state == .began else { return }
         let location: CGPoint = recognizer.location(in: contentView)
         guard let mappedLocation: CGPoint = canvas.longPress(at: location) else { return }
@@ -136,8 +182,10 @@ final class GestureCanvasInteractionUIView: UIView {
         let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
+            print("--------> \(#function)", "possible")
             break
         case .began:
+            print("--------> \(#function)", "began")
             if canvas.isZooming {
                 return
             }
@@ -155,6 +203,7 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.gestureUpdate(to: coordinate, at: location)
             canvas.updatePan(at: location)
         case .ended, .cancelled, .failed:
+            print("--------> \(#function)", "ended")
             guard startPan != nil else { return }
             startPan = nil
             Task {
@@ -170,10 +219,12 @@ final class GestureCanvasInteractionUIView: UIView {
         let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
+            print("--------> \(#function)", "possible")
             break
         case .began:
+            print("--------> \(#function)", "began")
             guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
-            startPinch = Pinch(
+            startZoom = Zoom(
                 location: location,
                 coordinate: canvas.coordinate.unlimited
             )
@@ -187,35 +238,97 @@ final class GestureCanvasInteractionUIView: UIView {
             let directTouchCount: Int = 2
             let indirectTouchCount: Int = 0
             guard [directTouchCount, indirectTouchCount].contains(recognizer.numberOfTouches) else { break }
-            guard let startPinch: Pinch else { break }
-            var scale: CGFloat = startPinch.coordinate.scale * recognizer.scale
+            guard let startZoom: Zoom else { break }
+            var scale: CGFloat = startZoom.coordinate.scale * recognizer.scale
             if let minimumScale = canvas.minimumScale {
                 scale = max(scale, minimumScale)
             }
             if let maximumScale = canvas.maximumScale {
                 scale = min(scale, maximumScale)
             }
-            let magnification: CGFloat = scale / startPinch.coordinate.scale
-            let offset: CGPoint = location - startPinch.location
-            let locationOffset: CGPoint = startPinch.coordinate.offset - startPinch.location
+            let magnification: CGFloat = scale / startZoom.coordinate.scale
+            let offset: CGPoint = location - startZoom.location
+            let locationOffset: CGPoint = startZoom.coordinate.offset - startZoom.location
             let scaledLocationOffset: CGPoint = locationOffset * magnification
             let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
             let coordinate = GestureCanvasCoordinate(
-                offset: startPinch.coordinate.offset + offset + scaleOffset,
+                offset: startZoom.coordinate.offset + offset + scaleOffset,
                 scale: scale
             )
             canvas.gestureUpdate(to: coordinate, at: location)
             canvas.updateZoom(at: location)
-            lastPinchLocation = location
+            lastPinchZoomLocation = location
         case .ended, .cancelled, .failed:
-            guard startPinch != nil else { return }
-            startPinch = nil
-            let pinchLocation: CGPoint = lastPinchLocation ?? location
-            lastPinchLocation = nil
-            canvas.willEndZoom(at: pinchLocation)
+            print("--------> \(#function)", "eneded")
+            guard startZoom != nil else { return }
+            startZoom = nil
+            let lastLocation: CGPoint = lastPinchZoomLocation ?? location
+            lastPinchZoomLocation = nil
+            canvas.willEndZoom(at: lastLocation)
             Task {
-                await canvas.gestureEnded(at: pinchLocation)
-                canvas.didEndZoom(at: pinchLocation)
+                await canvas.gestureEnded(at: lastLocation)
+                canvas.didEndZoom(at: lastLocation)
+            }
+        @unknown default:
+            break
+        }
+    }
+    
+    @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
+        if recognizer.state == .ended {
+            print("--------> \(#function)", "ended")
+            let location: CGPoint = recognizer.location(in: contentView)
+            canvas.backgroundDoubleTap(at: location)
+        }
+    }
+    
+    @objc private func didDoubleTapDrag(_ recognizer: DoubleTapDragGestureRecognizer) {
+        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        switch recognizer.state {
+        case .possible:
+            print("--------> \(#function)", "possible")
+            break
+        case .began:
+            print("--------> \(#function)", "began")
+            startZoom = Zoom(
+                location: location,
+                coordinate: canvas.coordinate.unlimited
+            )
+            if canvas.isPanning {
+                canvas.cancelPan()
+            }
+            canvas.startZoom(at: location)
+            canvas.gestureStart()
+        case .changed:
+            guard let startZoom: Zoom else { break }
+            let dy = recognizer.translation.y
+            let factor = exp(-dy * 0.005)
+            var scale = startZoom.coordinate.scale * factor
+            if let minimumScale = canvas.minimumScale {
+                scale = max(scale, minimumScale)
+            }
+            if let maximumScale = canvas.maximumScale {
+                scale = min(scale, maximumScale)
+            }
+            let magnification: CGFloat = scale / startZoom.coordinate.scale
+            let offset: CGPoint = .zero
+            let locationOffset: CGPoint = startZoom.coordinate.offset - startZoom.location
+            let scaledLocationOffset: CGPoint = locationOffset * magnification
+            let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
+            let coordinate = GestureCanvasCoordinate(
+                offset: startZoom.coordinate.offset + offset + scaleOffset,
+                scale: scale
+            )
+            canvas.gestureUpdate(to: coordinate, at: startZoom.location)
+            canvas.updateZoom(at: startZoom.location)
+        case .ended, .cancelled, .failed:
+            print("--------> \(#function)", "ended")
+            guard let startZoom: Zoom else { return }
+            self.startZoom = nil
+            canvas.willEndZoom(at: startZoom.location)
+            Task {
+                await canvas.gestureEnded(at: startZoom.location)
+                canvas.didEndZoom(at: startZoom.location)
             }
         @unknown default:
             break
@@ -290,8 +403,11 @@ extension GestureCanvasInteractionUIView: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+//        if gestureRecognizer == doublePanGestureRecognizer {
+//            return true
+//        }
         if gestureRecognizer == pinchGestureRecognizer {
-            return true
+            return otherGestureRecognizer != doubleTapDragGestureRecognizer
         }
         return false
     }

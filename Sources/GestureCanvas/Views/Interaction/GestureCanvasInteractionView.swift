@@ -42,6 +42,7 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
         }
 
         func refresh() {
+            print("Gesture Canvas - Refresh")
             hostingController?.rootView = content()
         }
     }

@@ -19,6 +19,7 @@ public struct GestureCanvasGestureView: View {
     public var body: some View {
         Color.gray.opacity(0.001)
             .coordinateSpace(GestureCanvasCoordinate.space)
+#if os(macOS)
             .gesture(
                 SpatialTapGesture(count: 2)
                     .onEnded { value in
@@ -31,6 +32,7 @@ public struct GestureCanvasGestureView: View {
                         canvas.backgroundTap(at: value.location)
                     }
             )
+#endif
             .highPriorityGesture(
                 DragGesture()
                     .onChanged { value in
