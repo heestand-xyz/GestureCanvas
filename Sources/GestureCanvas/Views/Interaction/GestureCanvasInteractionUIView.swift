@@ -106,9 +106,6 @@ final class GestureCanvasInteractionUIView: UIView {
     private func addGestures() {
         
         let tap = UITapGestureRecognizer(target: self, action: #selector(didTap(_:)))
-        tap.allowedTouchTypes = [
-            UITouch.TouchType.direct.rawValue as NSNumber,
-        ]
         tap.numberOfTapsRequired = 1
         tap.delegate = self
         addGestureRecognizer(tap)
@@ -141,9 +138,6 @@ final class GestureCanvasInteractionUIView: UIView {
         self.pinchGestureRecognizer = pinch
         
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(didDoubleTap(_:)))
-        doubleTap.allowedTouchTypes = [
-            UITouch.TouchType.direct.rawValue as NSNumber,
-        ]
         doubleTap.numberOfTapsRequired = 2
         doubleTap.delegate = self
         addGestureRecognizer(doubleTap)
@@ -162,14 +156,12 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
-            print("--------> \(#function)", "ended")
             let location: CGPoint = recognizer.location(in: contentView)
             canvas.backgroundTap(at: location)
         }
     }
     
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
-        print("--------> \(#function)", "...")
         guard recognizer.state == .began else { return }
         let location: CGPoint = recognizer.location(in: contentView)
         guard let mappedLocation: CGPoint = canvas.longPress(at: location) else { return }
@@ -182,10 +174,8 @@ final class GestureCanvasInteractionUIView: UIView {
         let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
-            print("--------> \(#function)", "possible")
             break
         case .began:
-            print("--------> \(#function)", "began")
             if canvas.isZooming {
                 return
             }
@@ -203,7 +193,6 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.gestureUpdate(to: coordinate, at: location)
             canvas.updatePan(at: location)
         case .ended, .cancelled, .failed:
-            print("--------> \(#function)", "ended")
             guard startPan != nil else { return }
             startPan = nil
             Task {
@@ -219,10 +208,8 @@ final class GestureCanvasInteractionUIView: UIView {
         let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
-            print("--------> \(#function)", "possible")
             break
         case .began:
-            print("--------> \(#function)", "began")
             guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
             startZoom = Zoom(
                 location: location,
@@ -259,7 +246,6 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.updateZoom(at: location)
             lastPinchZoomLocation = location
         case .ended, .cancelled, .failed:
-            print("--------> \(#function)", "eneded")
             guard startZoom != nil else { return }
             startZoom = nil
             let lastLocation: CGPoint = lastPinchZoomLocation ?? location
@@ -276,7 +262,6 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
-            print("--------> \(#function)", "ended")
             let location: CGPoint = recognizer.location(in: contentView)
             canvas.backgroundDoubleTap(at: location)
         }
@@ -286,10 +271,8 @@ final class GestureCanvasInteractionUIView: UIView {
         let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
-            print("--------> \(#function)", "possible")
             break
         case .began:
-            print("--------> \(#function)", "began")
             startZoom = Zoom(
                 location: location,
                 coordinate: canvas.coordinate.unlimited
@@ -322,7 +305,6 @@ final class GestureCanvasInteractionUIView: UIView {
             canvas.gestureUpdate(to: coordinate, at: startZoom.location)
             canvas.updateZoom(at: startZoom.location)
         case .ended, .cancelled, .failed:
-            print("--------> \(#function)", "ended")
             guard let startZoom: Zoom else { return }
             self.startZoom = nil
             canvas.willEndZoom(at: startZoom.location)
