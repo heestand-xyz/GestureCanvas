@@ -156,14 +156,14 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
-            let location: CGPoint = recognizer.location(in: contentView)
+            let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
             canvas.backgroundTap(at: location)
         }
     }
     
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began else { return }
-        let location: CGPoint = recognizer.location(in: contentView)
+        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
         guard let mappedLocation: CGPoint = canvas.longPress(at: location) else { return }
         canvas.lastInteractionLocation = mappedLocation
         let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: mappedLocation)
@@ -262,7 +262,7 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
-            let location: CGPoint = recognizer.location(in: contentView)
+            let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
             canvas.backgroundDoubleTap(at: location)
         }
     }
