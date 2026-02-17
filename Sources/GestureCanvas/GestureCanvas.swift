@@ -31,7 +31,7 @@ public protocol GestureCanvasDelegate: AnyObject {
     @MainActor
     func gestureCanvasContextMenu(_ canvas: GestureCanvas, at location: CGPoint) -> NSMenu?
 #else
-    func gestureCanvasContext(at location: CGPoint) -> CGPoint?
+    func gestureCanvasContext(at location: CGPoint) -> Bool
     func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
 
     func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
@@ -333,8 +333,8 @@ extension GestureCanvas {
         lastInteractionLocation = nil
     }
     
-    func longPress(at location: CGPoint) -> CGPoint? {
-        delegate?.gestureCanvasContext(at: location)
+    func longPress(at location: CGPoint) -> Bool {
+        delegate?.gestureCanvasContext(at: location) ?? false
     }
 }
 #endif
