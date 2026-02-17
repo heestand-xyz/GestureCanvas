@@ -15,6 +15,8 @@ public protocol GestureCanvasDelegate: AnyObject {
 
     func gestureCanvasChanged(_ canvas: GestureCanvas, coordinate: GestureCanvasDynamicCoordinate)
     
+    func gestureCanvasAllowInteraction(_ canvas: GestureCanvas, at location: CGPoint) -> Bool
+    
     func gestureCanvasBackgroundTap(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasBackgroundDoubleTap(_ canvas: GestureCanvas, at location: CGPoint)
     
@@ -181,8 +183,15 @@ public final class GestureCanvas: Sendable {
         moveAnimator != nil
     }
     
-    public init(coordinate: GestureCanvasCoordinate = .zero) {
+    public init(coordinate: GestureCanvasCoordinate = .default) {
         self.coordinate = .unlimited(coordinate)
+    }
+}
+
+extension GestureCanvas {
+    
+    func allowInteraction(at location: CGPoint) -> Bool {
+        delegate?.gestureCanvasAllowInteraction(self, at: location) ?? false
     }
 }
 

@@ -157,6 +157,7 @@ final class GestureCanvasInteractionUIView: UIView {
     @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
             let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+            guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundTap(at: location)
         }
     }
@@ -164,6 +165,7 @@ final class GestureCanvasInteractionUIView: UIView {
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began else { return }
         let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        guard canvas.allowInteraction(at: location) else { return }
         guard canvas.longPress(at: location) else { return }
         canvas.lastInteractionLocation = location
         let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: location)
@@ -176,6 +178,7 @@ final class GestureCanvasInteractionUIView: UIView {
         case .possible:
             break
         case .began:
+            guard canvas.allowInteraction(at: location) else { return }
             if canvas.isZooming {
                 return
             }
@@ -263,6 +266,7 @@ final class GestureCanvasInteractionUIView: UIView {
     @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
             let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+            guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundDoubleTap(at: location)
         }
     }
@@ -273,6 +277,7 @@ final class GestureCanvasInteractionUIView: UIView {
         case .possible:
             break
         case .began:
+            guard canvas.allowInteraction(at: location) else { return }
             startZoom = Zoom(
                 location: location,
                 coordinate: canvas.coordinate.unlimited
