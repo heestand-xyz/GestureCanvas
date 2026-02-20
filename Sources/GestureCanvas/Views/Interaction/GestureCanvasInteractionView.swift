@@ -41,10 +41,9 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
             self.content = content
         }
 
-        @available(*, deprecated)
         func refresh() {
-//            print("Gesture Canvas - Refresh")
-//            hostingController?.rootView = content()
+            // Needed to keep view models in sync with views.
+            hostingController?.rootView = content()
         }
     }
 }
