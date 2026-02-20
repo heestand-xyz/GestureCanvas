@@ -156,7 +156,7 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
-            let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+            let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
             guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundTap(at: location)
         }
@@ -164,16 +164,16 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began else { return }
-        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
         guard canvas.allowInteraction(at: location) else { return }
         guard canvas.longPress(at: location) else { return }
         canvas.lastInteractionLocation = location
-        let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: location)
+        let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: location + canvas.safeAreaOffset)
         interaction?.presentEditMenu(with: configuration)
     }
     
     @objc private func didPan(_ recognizer: UIPanGestureRecognizer) {
-        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
             break
@@ -208,7 +208,7 @@ final class GestureCanvasInteractionUIView: UIView {
     }
     
     @objc private func didPinch(_ recognizer: UIPinchGestureRecognizer) {
-        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
             break
@@ -265,14 +265,14 @@ final class GestureCanvasInteractionUIView: UIView {
     
     @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
-            let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+            let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
             guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundDoubleTap(at: location)
         }
     }
     
     @objc private func didDoubleTapDrag(_ recognizer: DoubleTapDragGestureRecognizer) {
-        let location: CGPoint = recognizer.location(in: self) + canvas.zoomCoordinateOffset
+        let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
         switch recognizer.state {
         case .possible:
             break

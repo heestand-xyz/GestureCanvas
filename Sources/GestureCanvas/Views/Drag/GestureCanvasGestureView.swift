@@ -62,21 +62,21 @@ public struct GestureCanvasGestureView: View {
 #endif
             }()
             if asSelection {
-                canvas.dragSelectionStarted(at: value.startLocation)
+                canvas.dragSelectionStarted(at: value.startLocation - canvas.safeAreaOffset)
             } else {
                 if canvas.isZooming { return }
                 if canvas.isSelecting { return }
-                canvas.startPan(at: value.startLocation)
+                canvas.startPan(at: value.startLocation - canvas.safeAreaOffset)
             }
             startCoordinate = canvas.coordinate.unlimited
         }
         if asSelection {
-            canvas.dragSelectionUpdated(at: value.location)
+            canvas.dragSelectionUpdated(at: value.location - canvas.safeAreaOffset)
         } else {
             if canvas.isZooming { return }
             if canvas.isSelecting { return }
             canvas.offset(to: startCoordinate!.offset + value.translation)
-            canvas.updatePan(at: value.location)
+            canvas.updatePan(at: value.location - canvas.safeAreaOffset)
         }
     }
     
@@ -86,9 +86,9 @@ public struct GestureCanvasGestureView: View {
         }
         guard startCoordinate != nil else { return }
         if asSelection {
-            canvas.dragSelectionEnded(at: value.location)
+            canvas.dragSelectionEnded(at: value.location - canvas.safeAreaOffset)
         } else {
-            canvas.endPan(at: value.location)
+            canvas.endPan(at: value.location - canvas.safeAreaOffset)
         }
         startCoordinate = nil
     }
