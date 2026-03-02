@@ -178,7 +178,6 @@ final class GestureCanvasInteractionUIView: UIView {
         case .possible:
             break
         case .began:
-            guard canvas.allowInteraction(at: location) else { return }
             if canvas.isZooming {
                 return
             }
