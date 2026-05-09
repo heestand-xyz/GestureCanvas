@@ -138,7 +138,8 @@ public final class GestureCanvas: Sendable {
     }
     
 #if os(iOS)
-    internal var isIndirectTouching: Bool = false
+    /// Pointer on trackpad on iPad.
+    public internal(set) var isIndirectTouching: Bool = false
 #endif
     internal private(set) var isSelecting: Bool = false
     
