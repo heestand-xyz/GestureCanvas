@@ -79,7 +79,7 @@ final class GestureCanvasInteractionUIView: UIView {
     // MARK: - Setup
     
     private func setup() {
-        guard let delegate: UIEditMenuInteractionDelegate = canvas.delegate?.gestureCanvasEditMenuInteractionDelegate() else { return }
+        guard let delegate: UIEditMenuInteractionDelegate = canvas.delegate?.gestureCanvasEditMenuInteractionDelegate(canvas) else { return }
         let interaction = UIEditMenuInteraction(delegate: delegate)
         addInteraction(interaction)
         self.interaction = interaction

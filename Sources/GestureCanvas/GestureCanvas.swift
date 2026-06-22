@@ -35,8 +35,8 @@ public protocol GestureCanvasDelegate: AnyObject {
     @MainActor
     func gestureCanvasContextMenu(_ canvas: GestureCanvas, at location: CGPoint) -> NSMenu?
 #else
-    func gestureCanvasContext(at location: CGPoint) -> Bool
-    func gestureCanvasEditMenuInteractionDelegate() -> UIEditMenuInteractionDelegate?
+    func gestureCanvasContext(_ canvas: GestureCanvas, at location: CGPoint) -> Bool
+    func gestureCanvasEditMenuInteractionDelegate(_ canvas: GestureCanvas) -> UIEditMenuInteractionDelegate?
 
     func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
 #endif
@@ -56,6 +56,8 @@ public protocol GestureCanvasDelegate: AnyObject {
 @MainActor
 @Observable
 public final class GestureCanvas: Sendable {
+    
+    public let id: UUID
     
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
@@ -186,7 +188,8 @@ public final class GestureCanvas: Sendable {
         moveAnimator != nil
     }
     
-    public init(coordinate: GestureCanvasCoordinate = .default) {
+    public init(id: UUID = UUID(), coordinate: GestureCanvasCoordinate = .default) {
+        self.id = id
         self.coordinate = .unlimited(coordinate)
     }
 }
@@ -353,7 +356,7 @@ extension GestureCanvas {
     }
     
     func longPress(at location: CGPoint) -> Bool {
-        delegate?.gestureCanvasContext(at: location) ?? false
+        delegate?.gestureCanvasContext(self, at: location) ?? false
     }
 }
 #endif
