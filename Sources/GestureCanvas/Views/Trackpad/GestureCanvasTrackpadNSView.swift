@@ -34,7 +34,10 @@ public class GestureCanvasTrackpadNSView: NSView {
     private var startCoordinate: GestureCanvasCoordinate?
     private var targetCoordinateScale: CGFloat?
     private var magnification: CGFloat?
-    
+
+    private var flagsMonitor: Any?
+    private var magnifyMonitor: Any?
+
     public init(canvas: GestureCanvas,
                 contentView: NSView?) {
         
@@ -57,11 +60,11 @@ public class GestureCanvasTrackpadNSView: NSView {
             ])
         }
         
-        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] in
+        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] in
             self?.flagsChanged(with: $0)
             return $0
         }
-        NSEvent.addLocalMonitorForEvents(matching: .magnify) { [weak self] in
+        magnifyMonitor = NSEvent.addLocalMonitorForEvents(matching: .magnify) { [weak self] in
             self?.magnify(with: $0)
             return $0
         }
@@ -80,6 +83,20 @@ public class GestureCanvasTrackpadNSView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
     
+    deinit {
+        if let flagsMonitor {
+            NSEvent.removeMonitor(flagsMonitor)
+        }
+        if let magnifyMonitor {
+            NSEvent.removeMonitor(magnifyMonitor)
+        }
+
+        NotificationCenter.default.removeObserver(self)
+
+        scrollTimer?.invalidate()
+        multiTapTimer?.invalidate()
+    }
+    
     @objc private func windowDidResignKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               window == self.window else { return }
@@ -90,6 +107,10 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     public override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for trackingArea in trackingAreas {
+            removeTrackingArea(trackingArea)
+        }
         let trackingArea = NSTrackingArea(rect: bounds, options: [
             .mouseMoved,
             .mouseEnteredAndExited,
@@ -209,18 +230,19 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     private func didEndScroll() {
+        guard let endedScrollMethod = scrollMethod else { return }
         guard let location: CGPoint = getMouseLocation() else { return }
-        startCoordinate = nil
         scrollMethod = nil
+        startCoordinate = nil
         canvas.isScrolling = false
-        if scrollMethod == .zoom {
+        if endedScrollMethod == .zoom {
             canvas.willEndZoom(at: location)
         } else {
             canvas.endPan(at: location)
         }
         Task {
             await canvas.gestureEnded(at: location)
-            if scrollMethod == .zoom {
+            if endedScrollMethod == .zoom {
                 canvas.didEndZoom(at: location)
             }
         }
