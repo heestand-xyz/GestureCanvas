@@ -17,6 +17,7 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     }
     
     func updateNSView(_ trackpadView: GestureCanvasTrackpadNSView, context: Context) {
+        context.coordinator.content = content
         context.coordinator.refresh()
     }
     
@@ -26,7 +27,7 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     
     class Coordinator {
 
-        private let content: () -> Content
+        var content: () -> Content
 
         var hostingController: NSHostingController<Content>?
 

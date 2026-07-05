@@ -24,6 +24,7 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     }
     
     func updateUIView(_ interactionView: GestureCanvasInteractionUIView, context: Context) {
+        context.coordinator.content = content
         context.coordinator.refresh()
     }
     
@@ -33,7 +34,7 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     
     class Coordinator {
 
-        private let content: () -> Content
+        var content: () -> Content
 
         var hostingController: UIHostingController<Content>?
 
