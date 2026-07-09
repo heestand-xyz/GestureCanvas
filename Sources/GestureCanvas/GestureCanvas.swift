@@ -77,11 +77,11 @@ public final class GestureCanvas: Sendable {
     }
     
     @ObservationIgnored
-    public var minimumScale: CGFloat? = 0.1
+    public var minimumScale: CGFloat? = 0.05
     @ObservationIgnored
     public var maximumScale: CGFloat? = 4.0
     @ObservationIgnored
-    public var softMinimumScale: CGFloat? = 0.2
+    public var softMinimumScale: CGFloat? = 0.1
     @ObservationIgnored
     public var softMaximumScale: CGFloat? = 1.0
         
