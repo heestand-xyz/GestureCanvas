@@ -69,7 +69,7 @@ public final class GestureCanvas: Sendable {
     }
     
     private var currentCoordinate: GestureCanvasCoordinate {
-        if limitZoomIn {
+        if limitsZoom {
             coordinate.limited
         } else {
             coordinate.unlimited
@@ -77,13 +77,20 @@ public final class GestureCanvas: Sendable {
     }
     
     @ObservationIgnored
-    public var minimumScale: CGFloat? = 0.25
+    public var minimumScale: CGFloat? = 0.1
     @ObservationIgnored
     public var maximumScale: CGFloat? = 4.0
+    @ObservationIgnored
+    public var softMinimumScale: CGFloat? = 0.2
+    @ObservationIgnored
+    public var softMaximumScale: CGFloat? = 1.0
         
-    public var limitZoomIn: Bool = false
-    /// A fraction of what the limited scale will be beyond scale of 1.0.
+    /// A fraction of what the limited scale will be beyond the soft limit.
     nonisolated public static let limitScale: CGFloat = 0.25
+    
+    private var limitsZoom: Bool {
+        softMinimumScale != nil || softMaximumScale != nil
+    }
     
     public internal(set) var size: CGSize = .one
     
@@ -230,8 +237,8 @@ extension GestureCanvas {
         if isAnimating {
             cancelMoveAnimation()
         }
-        if limitZoomIn {
-            self.coordinate = .unlimited(hardLimitZoomIn(coordinate: coordinate))
+        if limitsZoom {
+            self.coordinate = .unlimited(hardLimitZoom(coordinate: coordinate))
         } else {
             self.coordinate = .unlimited(coordinate)
         }
@@ -244,8 +251,8 @@ extension GestureCanvas {
     }
     
     internal func gestureUpdate(to coordinate: GestureCanvasCoordinate, at location: CGPoint) {
-        if limitZoomIn {
-            let limitedCoordinate: GestureCanvasCoordinate = softLimitZoomIn(
+        if limitsZoom {
+            let limitedCoordinate: GestureCanvasCoordinate = softLimitZoom(
                 coordinate: coordinate,
                 at: location
             )
@@ -260,8 +267,8 @@ extension GestureCanvas {
     
     @discardableResult
     internal func gestureEnded(at location: CGPoint) async -> Bool {
-        if limitZoomIn, coordinate.unlimited.scale > 1.0 {
-            let hardLimitedCoordinate: GestureCanvasCoordinate = hardLimitZoomIn(
+        if limitsZoom, zoomNeedsLimit(coordinate.unlimited) {
+            let hardLimitedCoordinate: GestureCanvasCoordinate = hardLimitZoom(
                 coordinate: coordinate.unlimited,
                 at: location
             )
@@ -276,8 +283,8 @@ extension GestureCanvas {
     public func animate(
         to coordinate: GestureCanvasCoordinate
     ) async -> Bool {
-        let targetCoordinate: GestureCanvasCoordinate = if limitZoomIn {
-            hardLimitZoomIn(coordinate: coordinate)
+        let targetCoordinate: GestureCanvasCoordinate = if limitsZoom {
+            hardLimitZoom(coordinate: coordinate)
         } else {
             coordinate
         }
@@ -295,7 +302,7 @@ extension GestureCanvas {
                     offset: oldCoordinate.offset * (1.0 - fraction) + targetCoordinate.offset * fraction,
                     scale: oldCoordinate.scale * (1.0 - fraction) + targetCoordinate.scale * fraction
                 )
-                if limitZoomIn {
+                if limitsZoom {
                     let newUnlimitedCoordinate = GestureCanvasCoordinate(
                         offset: oldUnlimitedCoordinate.offset * (1.0 - fraction) + targetCoordinate.offset * fraction,
                         scale: oldUnlimitedCoordinate.scale * (1.0 - fraction) + targetCoordinate.scale * fraction
@@ -309,7 +316,7 @@ extension GestureCanvas {
                 }
             } completion: { [weak self] completed in
                 guard let self else { return }
-                if completed, limitZoomIn {
+                if completed, limitsZoom {
                     self.coordinate = .unlimited(targetCoordinate)
                 }
                 moveAnimator = nil
@@ -321,6 +328,16 @@ extension GestureCanvas {
     private func cancelMoveAnimation() {
         moveAnimator?.cancel()
         moveAnimator = nil
+    }
+    
+    private func zoomNeedsLimit(_ coordinate: GestureCanvasCoordinate) -> Bool {
+        if let softMaximumScale, coordinate.scale > softMaximumScale {
+            return true
+        }
+        if let softMinimumScale, coordinate.scale < softMinimumScale {
+            return true
+        }
+        return false
     }
 }
 
@@ -435,9 +452,95 @@ extension GestureCanvas {
 
 #endif
 
-// MARK: Limit Zoom In
+// MARK: Limit Zoom
 
 extension GestureCanvas {
+    
+    /// Limit scale is zero a.k.a. no way to go beyond the zoom limit.
+    public func hardLimitZoom(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint? = nil
+    ) -> GestureCanvasCoordinate {
+        Self.hardLimitZoom(
+            coordinate: coordinate,
+            at: location,
+            size: size,
+            softMinimumScale: softMinimumScale,
+            softMaximumScale: softMaximumScale,
+            minimumScale: minimumScale,
+            maximumScale: maximumScale,
+        )
+    }
+    
+    /// Limit scale is zero a.k.a. no way to go beyond the zoom limit.
+    public static func hardLimitZoom(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint? = nil,
+        size: CGSize,
+        softMinimumScale: CGFloat?,
+        softMaximumScale: CGFloat?,
+        minimumScale: CGFloat?,
+        maximumScale: CGFloat?
+    ) -> GestureCanvasCoordinate {
+        softLimitZoom(
+            coordinate: coordinate,
+            at: location ?? (size.asPoint / 2),
+            limitScale: 0.0,
+            softMinimumScale: softMinimumScale,
+            softMaximumScale: softMaximumScale,
+            minimumScale: minimumScale,
+            maximumScale: maximumScale
+        )
+    }
+    
+    /// Limit scale is default at 25%.
+    public func softLimitZoom(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint,
+        limitScale: CGFloat = limitScale
+    ) -> GestureCanvasCoordinate {
+        Self.softLimitZoom(
+            coordinate: coordinate,
+            at: location,
+            limitScale: limitScale,
+            softMinimumScale: softMinimumScale,
+            softMaximumScale: softMaximumScale,
+            minimumScale: minimumScale,
+            maximumScale: maximumScale
+        )
+    }
+    
+    public static func softLimitZoom(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint,
+        limitScale: CGFloat = limitScale,
+        softMinimumScale: CGFloat?,
+        softMaximumScale: CGFloat?,
+        minimumScale: CGFloat?,
+        maximumScale: CGFloat?
+    ) -> GestureCanvasCoordinate {
+        if let softMaximumScale, coordinate.scale > softMaximumScale {
+            return softLimitZoomIn(
+                coordinate: coordinate,
+                at: location,
+                limitScale: limitScale,
+                softMaximumScale: softMaximumScale,
+                minimumScale: minimumScale,
+                maximumScale: maximumScale
+            )
+        }
+        if let softMinimumScale, coordinate.scale < softMinimumScale {
+            return softLimitZoomOut(
+                coordinate: coordinate,
+                at: location,
+                limitScale: limitScale,
+                softMinimumScale: softMinimumScale,
+                minimumScale: minimumScale,
+                maximumScale: maximumScale
+            )
+        }
+        return coordinate
+    }
     
     /// Limit scale is zero a.k.a. no way to go beyond the zoom limit.
     public func hardLimitZoomIn(
@@ -448,6 +551,7 @@ extension GestureCanvas {
             coordinate: coordinate,
             at: location,
             size: size,
+            softMaximumScale: softMaximumScale,
             minimumScale: minimumScale,
             maximumScale: maximumScale,
         )
@@ -458,6 +562,7 @@ extension GestureCanvas {
         coordinate: GestureCanvasCoordinate,
         at location: CGPoint? = nil,
         size: CGSize,
+        softMaximumScale: CGFloat? = 1.0,
         minimumScale: CGFloat?,
         maximumScale: CGFloat?
     ) -> GestureCanvasCoordinate {
@@ -465,12 +570,12 @@ extension GestureCanvas {
             coordinate: coordinate,
             at: location ?? (size.asPoint / 2),
             limitScale: 0.0,
+            softMaximumScale: softMaximumScale,
             minimumScale: minimumScale,
             maximumScale: maximumScale
         )
     }
     
-    /// Limit scale is default at 50%.
     public func softLimitZoomIn(
         coordinate: GestureCanvasCoordinate,
         at location: CGPoint,
@@ -480,21 +585,102 @@ extension GestureCanvas {
             coordinate: coordinate,
             at: location,
             limitScale: limitScale,
+            softMaximumScale: softMaximumScale,
             minimumScale: minimumScale,
             maximumScale: maximumScale
         )
     }
     
-    /// Limit scale is default at 50%.
     public static func softLimitZoomIn(
         coordinate: GestureCanvasCoordinate,
         at location: CGPoint,
         limitScale: CGFloat = limitScale,
+        softMaximumScale: CGFloat? = 1.0,
         minimumScale: CGFloat?,
         maximumScale: CGFloat?
     ) -> GestureCanvasCoordinate {
-        guard coordinate.scale > 1.0 else { return coordinate }
-        var scale: CGFloat = 1.0 + (coordinate.scale - 1.0) * limitScale
+        guard let softMaximumScale else { return coordinate }
+        guard coordinate.scale > softMaximumScale else { return coordinate }
+        var scale: CGFloat = softMaximumScale + (coordinate.scale - softMaximumScale) * limitScale
+        if let minimumScale = minimumScale {
+            scale = max(scale, minimumScale)
+        }
+        if let maximumScale = maximumScale {
+            scale = min(scale, maximumScale)
+        }
+        let magnification: CGFloat = scale / coordinate.scale
+        let locationOffset: CGPoint = coordinate.offset - location
+        let scaledLocationOffset: CGPoint = locationOffset * magnification
+        let scaleOffset: CGPoint = scaledLocationOffset - locationOffset
+        let offset: CGPoint = coordinate.offset + scaleOffset
+        return GestureCanvasCoordinate(
+            offset: offset,
+            scale: scale
+        )
+    }
+    
+    /// Limit scale is zero a.k.a. no way to go beyond the zoom limit.
+    public func hardLimitZoomOut(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint? = nil
+    ) -> GestureCanvasCoordinate {
+        Self.hardLimitZoomOut(
+            coordinate: coordinate,
+            at: location,
+            size: size,
+            softMinimumScale: softMinimumScale,
+            minimumScale: minimumScale,
+            maximumScale: maximumScale,
+        )
+    }
+    
+    /// Limit scale is zero a.k.a. no way to go beyond the zoom limit.
+    public static func hardLimitZoomOut(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint? = nil,
+        size: CGSize,
+        softMinimumScale: CGFloat? = 1.0,
+        minimumScale: CGFloat?,
+        maximumScale: CGFloat?
+    ) -> GestureCanvasCoordinate {
+        softLimitZoomOut(
+            coordinate: coordinate,
+            at: location ?? (size.asPoint / 2),
+            limitScale: 0.0,
+            softMinimumScale: softMinimumScale,
+            minimumScale: minimumScale,
+            maximumScale: maximumScale
+        )
+    }
+    
+    /// Limit scale is default at 25%.
+    public func softLimitZoomOut(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint,
+        limitScale: CGFloat = limitScale
+    ) -> GestureCanvasCoordinate {
+        Self.softLimitZoomOut(
+            coordinate: coordinate,
+            at: location,
+            limitScale: limitScale,
+            softMinimumScale: softMinimumScale,
+            minimumScale: minimumScale,
+            maximumScale: maximumScale
+        )
+    }
+    
+    /// Limit scale is default at 25%.
+    public static func softLimitZoomOut(
+        coordinate: GestureCanvasCoordinate,
+        at location: CGPoint,
+        limitScale: CGFloat = limitScale,
+        softMinimumScale: CGFloat? = 1.0,
+        minimumScale: CGFloat?,
+        maximumScale: CGFloat?
+    ) -> GestureCanvasCoordinate {
+        guard let softMinimumScale else { return coordinate }
+        guard coordinate.scale < softMinimumScale else { return coordinate }
+        var scale: CGFloat = softMinimumScale - (softMinimumScale - coordinate.scale) * limitScale
         if let minimumScale = minimumScale {
             scale = max(scale, minimumScale)
         }
