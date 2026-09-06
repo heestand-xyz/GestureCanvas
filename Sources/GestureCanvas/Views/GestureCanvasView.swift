@@ -23,6 +23,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
                     content()
                 }
+                .coordinateSpace(GestureCanvasCoordinate.space)
             }
 #else
             GestureCanvasInteractionView(canvas: canvas) {
@@ -30,6 +31,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
                     content()
                 }
+                .coordinateSpace(GestureCanvasCoordinate.space)
             }
 #endif
         }

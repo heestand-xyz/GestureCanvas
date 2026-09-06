@@ -1,5 +1,10 @@
 # Gesture Canvas
 
+Gestures and rendered content share `GestureCanvasCoordinate.space` on the hosted
+content root. Locations are measured from that root, plus `zoomCoordinateOffset`;
+do not subtract safe-area insets again. Each canvas owns its own coordinate space,
+including canvases in split views with different insets or section origins.
+
 ```swift
 import SwiftUI
 import GestureCanvas

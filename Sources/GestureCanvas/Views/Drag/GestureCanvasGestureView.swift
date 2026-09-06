@@ -21,22 +21,23 @@ public struct GestureCanvasGestureView: View {
     
     public var body: some View {
         Color.gray.opacity(0.001)
-            .coordinateSpace(GestureCanvasCoordinate.space)
 #if os(macOS)
             .gesture(
-                SpatialTapGesture(count: 2)
+                SpatialTapGesture(count: 2, coordinateSpace: GestureCanvasCoordinate.space)
                     .onEnded { value in
-                        if !canvas.interactionTap(at: value.location, count: 2) {
-                            canvas.backgroundDoubleTap(at: value.location)
+                        let location = value.location + canvas.zoomCoordinateOffset
+                        if !canvas.interactionTap(at: location, count: 2) {
+                            canvas.backgroundDoubleTap(at: location)
                         }
                     },
                 including: canvas.routesInteractions ? .none : .all
             )
             .gesture(
-                SpatialTapGesture(count: 1)
+                SpatialTapGesture(count: 1, coordinateSpace: GestureCanvasCoordinate.space)
                     .onEnded { value in
-                        if !canvas.interactionTap(at: value.location, count: 1) {
-                            canvas.backgroundTap(at: value.location)
+                        let location = value.location + canvas.zoomCoordinateOffset
+                        if !canvas.interactionTap(at: location, count: 1) {
+                            canvas.backgroundTap(at: location)
                         }
                     },
                 including: canvas.routesInteractions ? .none : .all
@@ -49,17 +50,19 @@ public struct GestureCanvasGestureView: View {
                         }
                     }
                     .exclusively(before:
-                        SpatialTapGesture(count: 2)
+                        SpatialTapGesture(count: 2, coordinateSpace: GestureCanvasCoordinate.space)
                             .onEnded { value in
-                                if !canvas.interactionTap(at: value.location, count: 2) {
-                                    canvas.backgroundDoubleTap(at: value.location)
+                                let location = value.location + canvas.zoomCoordinateOffset
+                                if !canvas.interactionTap(at: location, count: 2) {
+                                    canvas.backgroundDoubleTap(at: location)
                                 }
                             }
                             .exclusively(before:
-                                SpatialTapGesture(count: 1)
+                                SpatialTapGesture(count: 1, coordinateSpace: GestureCanvasCoordinate.space)
                                     .onEnded { value in
-                                        if !canvas.interactionTap(at: value.location, count: 1) {
-                                            canvas.backgroundTap(at: value.location)
+                                        let location = value.location + canvas.zoomCoordinateOffset
+                                        if !canvas.interactionTap(at: location, count: 1) {
+                                            canvas.backgroundTap(at: location)
                                         }
                                     }
                             )
@@ -68,7 +71,7 @@ public struct GestureCanvasGestureView: View {
             )
 #endif
             .highPriorityGesture(
-                DragGesture()
+                DragGesture(coordinateSpace: GestureCanvasCoordinate.space)
                     .updating($isDragActive) { _, active, _ in
                         active = true
                     }
@@ -103,15 +106,19 @@ public struct GestureCanvasGestureView: View {
     }
     
     private func onDragChanged(_ value: DragGesture.Value) {
+        // This space belongs to the hosted content, already inset by UIKit/AppKit.
+        // Subtracting the outer safe area again shifts hits down and right.
+        let location = value.location + canvas.zoomCoordinateOffset
+        let startLocation = value.startLocation + canvas.zoomCoordinateOffset
         if isObjectDragging {
-            canvas.updateInteractionDrag(at: value.location - canvas.safeAreaOffset)
+            canvas.updateInteractionDrag(at: location)
             return
         }
         if startCoordinate == nil {
             if !canvas.isZooming,
-               canvas.beginInteractionDrag(at: value.startLocation - canvas.safeAreaOffset) {
+               canvas.beginInteractionDrag(at: startLocation) {
                 isObjectDragging = true
-                canvas.updateInteractionDrag(at: value.location - canvas.safeAreaOffset)
+                canvas.updateInteractionDrag(at: location)
                 return
             }
             asSelection = {
@@ -124,27 +131,28 @@ public struct GestureCanvasGestureView: View {
 #endif
             }()
             if asSelection {
-                canvas.dragSelectionStarted(at: value.startLocation - canvas.safeAreaOffset)
+                canvas.dragSelectionStarted(at: startLocation)
             } else {
                 if canvas.isZooming { return }
                 if canvas.isSelecting { return }
-                canvas.startPan(at: value.startLocation - canvas.safeAreaOffset)
+                canvas.startPan(at: startLocation)
             }
             startCoordinate = canvas.coordinate.unlimited
         }
         if asSelection {
-            canvas.dragSelectionUpdated(at: value.location - canvas.safeAreaOffset)
+            canvas.dragSelectionUpdated(at: location)
         } else {
             if canvas.isZooming { return }
             if canvas.isSelecting { return }
             canvas.offset(to: startCoordinate!.offset + value.translation)
-            canvas.updatePan(at: value.location - canvas.safeAreaOffset)
+            canvas.updatePan(at: location)
         }
     }
     
     private func onDragEnded(_ value: DragGesture.Value) {
+        let location = value.location + canvas.zoomCoordinateOffset
         if isObjectDragging {
-            canvas.endInteractionDrag(at: value.location - canvas.safeAreaOffset)
+            canvas.endInteractionDrag(at: location)
             isObjectDragging = false
             return
         }
@@ -153,9 +161,9 @@ public struct GestureCanvasGestureView: View {
         }
         guard startCoordinate != nil else { return }
         if asSelection {
-            canvas.dragSelectionEnded(at: value.location - canvas.safeAreaOffset)
+            canvas.dragSelectionEnded(at: location)
         } else {
-            canvas.endPan(at: value.location - canvas.safeAreaOffset)
+            canvas.endPan(at: location)
         }
         startCoordinate = nil
     }

@@ -1,7 +1,8 @@
 import CoreGraphics
 
 /// Routes interactions to content drawn inside a canvas, before background actions.
-/// Locations use the same view coordinate space as the canvas's background delegate.
+/// Locations use the hosted content's view coordinate space plus `zoomCoordinateOffset`,
+/// matching the background delegate. The hosting view already accounts for safe-area insets.
 @MainActor
 public protocol GestureCanvasInteractionDelegate: AnyObject {
     func gestureCanvas(_ canvas: GestureCanvas, tapAt location: CGPoint, count: Int) -> Bool

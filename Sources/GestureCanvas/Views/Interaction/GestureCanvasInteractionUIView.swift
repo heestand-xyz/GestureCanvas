@@ -202,7 +202,7 @@ final class GestureCanvasInteractionUIView: UIView {
         guard canvas.allowInteraction(at: location) else { return }
         guard canvas.longPress(at: location) else { return }
         canvas.lastInteractionLocation = location
-        let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: location + canvas.safeAreaOffset)
+        let configuration = UIEditMenuConfiguration(identifier: nil, sourcePoint: recognizer.location(in: self))
         interaction?.presentEditMenu(with: configuration)
     }
     
@@ -400,9 +400,9 @@ final class GestureCanvasInteractionUIView: UIView {
 #if os(iOS)
         canvas.isIndirectTouching = false
 #endif
-        if canvas.isInteractionDragging {
-            canvas.cancelInteraction()
-        }
+        // UIKit also cancels raw view touches when SwiftUI recognizes a drag.
+        // GestureCanvasGestureView owns drag cancellation through its GestureState;
+        // cancelling here would abort an object drag as soon as it starts.
     }
     
     // MARK: - Presses
