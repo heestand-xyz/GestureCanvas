@@ -103,7 +103,23 @@ public class GestureCanvasTrackpadNSView: NSView {
         if scrollMethod != nil {
             cancelScroll()
         }
+        canvas.cancelInteraction()
         canvas.keyboardFlags = []
+    }
+
+    public override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil {
+            canvas.cancelInteraction()
+        }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    public override func cancelOperation(_ sender: Any?) {
+        if canvas.isInteractionDragging {
+            canvas.cancelInteraction()
+        } else {
+            super.cancelOperation(sender)
+        }
     }
     
     public override func updateTrackingAreas() {
@@ -127,7 +143,17 @@ public class GestureCanvasTrackpadNSView: NSView {
     // MARK: - Mouse
     
     public override func mouseMoved(with event: NSEvent) {
-        canvas.mouseLocation = getMouseLocation()
+        let location = getMouseLocation()
+        canvas.mouseLocation = location
+        canvas.interactionHover(at: location)
+    }
+
+    public override func mouseEntered(with event: NSEvent) {
+        mouseMoved(with: event)
+    }
+
+    public override func mouseExited(with event: NSEvent) {
+        canvas.interactionHover(at: nil)
     }
     
     private func getMouseLocation() -> CGPoint? {
@@ -362,6 +388,9 @@ public class GestureCanvasTrackpadNSView: NSView {
     public override func touchesCancelled(with event: NSEvent) {
         super.touchesCancelled(with: event)
         cancelMultiTap()
+        if canvas.isInteractionDragging {
+            canvas.cancelInteraction()
+        }
     }
     
     // MARK: - Multi Tap

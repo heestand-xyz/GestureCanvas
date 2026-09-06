@@ -62,6 +62,27 @@ public final class GestureCanvas: Sendable {
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
 
+    @ObservationIgnored
+    public weak var interactionDelegate: GestureCanvasInteractionDelegate? {
+        willSet {
+            if interactionDelegate !== newValue {
+                cancelInteraction()
+            }
+        }
+        didSet {
+            routesInteractions = interactionDelegate != nil
+        }
+    }
+
+    var routesInteractions: Bool = false
+
+    @ObservationIgnored
+    weak var interactionDragDelegate: GestureCanvasInteractionDelegate?
+    @ObservationIgnored
+    var isInteractionDragging: Bool = false
+    @ObservationIgnored
+    var isCancellingInteraction: Bool = false
+
     public private(set) var coordinate: GestureCanvasDynamicCoordinate {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
@@ -97,6 +118,9 @@ public final class GestureCanvas: Sendable {
     public private(set) var isPanning: Bool = false
     
     func startPan(at location: CGPoint) {
+        if isInteractionDragging {
+            cancelInteraction()
+        }
         isPanning = true
         delegate?.gestureCanvasDidStartPan(self, at: location)
     }
@@ -121,6 +145,7 @@ public final class GestureCanvas: Sendable {
     public private(set) var isZooming: Bool = false
     
     func startZoom(at location: CGPoint) {
+        cancelInteraction()
         isZooming = true
         delegate?.gestureCanvasDidStartZoom(self, at: location)
     }
@@ -445,6 +470,9 @@ extension GestureCanvas {
         let offset: CGPoint = location - startLocation
         let distance = hypot(offset.x, offset.y)
         guard distance < 10 else { return .ignore }
+        if interactionDelegate?.gestureCanvas(self, contextAt: location) == true {
+            return .ignore
+        }
         guard let contextMenu: NSMenu = delegate?.gestureCanvasContextMenu(self, at: location) else { return .ignore }
         return .context(contextMenu)
     }

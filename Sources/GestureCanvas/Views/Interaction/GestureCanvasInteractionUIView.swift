@@ -20,7 +20,17 @@ final class GestureCanvasInteractionUIView: UIView {
         super.didMoveToWindow()
         if window != nil {
             _ = becomeFirstResponder()
+        } else {
+            canvas.cancelInteraction()
         }
+    }
+
+    override func resignFirstResponder() -> Bool {
+        let didResign = super.resignFirstResponder()
+        if didResign {
+            canvas.cancelInteraction()
+        }
+        return didResign
     }
     
     private var interaction: UIEditMenuInteraction?
@@ -37,6 +47,8 @@ final class GestureCanvasInteractionUIView: UIView {
     private var doubleTapGestureRecognizer: UITapGestureRecognizer?
     /// **Double tap and drag** to zoom.
     private var doubleTapDragGestureRecognizer: DoubleTapDragGestureRecognizer?
+    /// Pointer hover on supported devices.
+    private var hoverGestureRecognizer: UIHoverGestureRecognizer?
 
     let canvas: GestureCanvas
     
@@ -70,10 +82,24 @@ final class GestureCanvasInteractionUIView: UIView {
         setup()
         layout()
         addGestures()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func applicationWillResignActive() {
+        canvas.cancelInteraction()
     }
     
     // MARK: - Setup
@@ -148,6 +174,12 @@ final class GestureCanvasInteractionUIView: UIView {
         addGestureRecognizer(doubleTapDrag)
         doubleTapDragGestureRecognizer = doubleTapDrag
 
+        let hover = UIHoverGestureRecognizer(target: self, action: #selector(didHover(_:)))
+        hover.cancelsTouchesInView = false
+        hover.delegate = self
+        addGestureRecognizer(hover)
+        hoverGestureRecognizer = hover
+
         tap.require(toFail: doubleTapDrag)
         doubleTap.require(toFail: doubleTapDrag)
         longPress.require(toFail: doubleTapDrag)
@@ -157,6 +189,7 @@ final class GestureCanvasInteractionUIView: UIView {
     @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
             let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
+            if canvas.interactionTap(at: location, count: 1) { return }
             guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundTap(at: location)
         }
@@ -165,6 +198,7 @@ final class GestureCanvasInteractionUIView: UIView {
     @objc private func didLongPress(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began else { return }
         let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
+        if canvas.interactionLongPress(at: location) { return }
         guard canvas.allowInteraction(at: location) else { return }
         guard canvas.longPress(at: location) else { return }
         canvas.lastInteractionLocation = location
@@ -212,6 +246,9 @@ final class GestureCanvasInteractionUIView: UIView {
         case .possible:
             break
         case .began:
+            if canvas.isInteractionDragging {
+                canvas.cancelInteraction()
+            }
             guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
             startZoom = Zoom(
                 location: location,
@@ -265,6 +302,7 @@ final class GestureCanvasInteractionUIView: UIView {
     @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
         if recognizer.state == .ended {
             let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
+            if canvas.interactionTap(at: location, count: 2) { return }
             guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundDoubleTap(at: location)
         }
@@ -276,7 +314,9 @@ final class GestureCanvasInteractionUIView: UIView {
         case .possible:
             break
         case .began:
-            guard canvas.allowInteraction(at: location) else { return }
+            // Content handles object hits, while zoom remains a canvas gesture.
+            // The background permission callback may deliberately reject those hits.
+            guard canvas.interactionDelegate != nil || canvas.allowInteraction(at: location) else { return }
             startZoom = Zoom(
                 location: location,
                 coordinate: canvas.coordinate.unlimited
@@ -321,6 +361,18 @@ final class GestureCanvasInteractionUIView: UIView {
         }
     }
     
+    // MARK: - Hover
+
+    @objc private func didHover(_ recognizer: UIHoverGestureRecognizer) {
+        switch recognizer.state {
+        case .began, .changed:
+            let location = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
+            canvas.interactionHover(at: location)
+        default:
+            canvas.interactionHover(at: nil)
+        }
+    }
+
     // MARK: - Touches
 
 #if os(iOS)
@@ -341,12 +393,17 @@ final class GestureCanvasInteractionUIView: UIView {
         }
     }
     
+#endif
+
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesCancelled(touches, with: event)
+#if os(iOS)
         canvas.isIndirectTouching = false
-    }
-    
 #endif
+        if canvas.isInteractionDragging {
+            canvas.cancelInteraction()
+        }
+    }
     
     // MARK: - Presses
     
@@ -384,11 +441,28 @@ final class GestureCanvasInteractionUIView: UIView {
 }
 
 extension GestureCanvasInteractionUIView: UIGestureRecognizerDelegate {
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        guard canvas.interactionDelegate != nil,
+              gestureRecognizer == doubleTapDragGestureRecognizer,
+              let otherView = otherGestureRecognizer.view,
+              otherView.isDescendant(of: contentView) else { return false }
+        // Reserve the second touch for zoom before hosted SwiftUI drags can
+        // claim it. A first-touch drag releases this requirement when the
+        // recognizer exceeds its normal tap movement threshold.
+        return true
+    }
     
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+        if gestureRecognizer == hoverGestureRecognizer || otherGestureRecognizer == hoverGestureRecognizer {
+            return true
+        }
 //        if gestureRecognizer == doublePanGestureRecognizer {
 //            return true
 //        }
