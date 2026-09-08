@@ -34,6 +34,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     private var startCoordinate: GestureCanvasCoordinate?
     private var targetCoordinateScale: CGFloat?
     private var magnification: CGFloat?
+    private var hasSecondaryDragCursor = false
 
     private var flagsMonitor: Any?
     private var magnifyMonitor: Any?
@@ -100,6 +101,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     @objc private func windowDidResignKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow,
               window == self.window else { return }
+        resetSecondaryDragCursor()
         if scrollMethod != nil {
             cancelScroll()
         }
@@ -109,6 +111,7 @@ public class GestureCanvasTrackpadNSView: NSView {
 
     public override func viewWillMove(toWindow newWindow: NSWindow?) {
         if newWindow == nil {
+            resetSecondaryDragCursor()
             canvas.cancelInteraction()
         }
         super.viewWillMove(toWindow: newWindow)
@@ -339,9 +342,12 @@ public class GestureCanvasTrackpadNSView: NSView {
         guard let location = getMouseLocation() else { return }
         canvas.dragSecondaryUpdated(at: location)
         canvas.updatePan(at: location)
+        hasSecondaryDragCursor = true
+        NSCursor.closedHand.set()
     }
     
     public override func rightMouseUp(with event: NSEvent) {
+        resetSecondaryDragCursor()
         guard let location = getMouseLocation() else { return }
         let action = canvas.dragSecondaryEnded(at: location)
         canvas.endPan(at: location)
@@ -351,6 +357,12 @@ public class GestureCanvasTrackpadNSView: NSView {
         case .ignore:
             break
         }
+    }
+
+    private func resetSecondaryDragCursor() {
+        guard hasSecondaryDragCursor else { return }
+        hasSecondaryDragCursor = false
+        NSCursor.arrow.set()
     }
     
     // MARK: - Touch
