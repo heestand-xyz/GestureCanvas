@@ -12,6 +12,9 @@ extension GestureCanvas {
     }
 
     func beginInteractionDrag(at location: CGPoint) -> Bool {
+#if os(macOS)
+        setToolTip(nil)
+#endif
         guard !isZooming, !isPanning, !isSelecting,
               let interactionDelegate,
               interactionDelegate.gestureCanvas(self, beginDragAt: location) else { return false }
@@ -37,6 +40,9 @@ extension GestureCanvas {
     /// Ends ownership of the current interaction without committing its action.
     /// Call before replacing a canvas's content or its interaction delegate.
     public func cancelInteraction() {
+#if os(macOS)
+        setToolTip(nil)
+#endif
         guard !isCancellingInteraction else { return }
         isCancellingInteraction = true
         defer { isCancellingInteraction = false }

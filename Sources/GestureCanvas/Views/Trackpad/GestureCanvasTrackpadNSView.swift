@@ -35,6 +35,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     private var targetCoordinateScale: CGFloat?
     private var magnification: CGFloat?
     private var hasSecondaryDragCursor = false
+    private var toolTipPresenter: GestureCanvasToolTipPresenter?
 
     private var flagsMonitor: Any?
     private var magnifyMonitor: Any?
@@ -47,6 +48,9 @@ public class GestureCanvasTrackpadNSView: NSView {
         self.contentView = contentView
         
         super.init(frame: .zero)
+        let presenter = GestureCanvasToolTipPresenter(view: self, canvas: canvas)
+        toolTipPresenter = presenter
+        canvas.toolTipPresenter = presenter
         
         allowedTouchTypes = [.direct, .indirect]
         
@@ -156,6 +160,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
 
     public override func mouseExited(with event: NSEvent) {
+        canvas.setToolTip(nil)
         canvas.interactionHover(at: nil)
     }
     

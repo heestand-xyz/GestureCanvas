@@ -83,6 +83,14 @@ public final class GestureCanvas: Sendable {
     @ObservationIgnored
     var isCancellingInteraction: Bool = false
 
+#if os(macOS)
+    @ObservationIgnored
+    public internal(set) var toolTip: GestureCanvasToolTip?
+    public internal(set) var hasToolTip = false
+    @ObservationIgnored
+    weak var toolTipPresenter: GestureCanvasToolTipPresenter?
+#endif
+
     public private(set) var coordinate: GestureCanvasDynamicCoordinate {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
@@ -118,6 +126,9 @@ public final class GestureCanvas: Sendable {
     public private(set) var isPanning: Bool = false
     
     func startPan(at location: CGPoint) {
+#if os(macOS)
+        setToolTip(nil)
+#endif
         if isInteractionDragging {
             cancelInteraction()
         }
@@ -145,6 +156,9 @@ public final class GestureCanvas: Sendable {
     public private(set) var isZooming: Bool = false
     
     func startZoom(at location: CGPoint) {
+#if os(macOS)
+        setToolTip(nil)
+#endif
         cancelInteraction()
         isZooming = true
         delegate?.gestureCanvasDidStartZoom(self, at: location)
