@@ -140,9 +140,11 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         self.tapGestureRecognizer = tap
         
         let longPress = UILongPressGestureRecognizer(target: self, action: #selector(didLongPress(_:)))
+#if os(iOS)
         longPress.allowedTouchTypes = [
             UITouch.TouchType.direct.rawValue as NSNumber,
         ]
+#endif
         addGestureRecognizer(longPress)
         self.longPressGestureRecognizer = longPress
         
