@@ -11,7 +11,9 @@ import UIKit
 import Combine
 import CoreGraphicsExtensions
 
-final class GestureCanvasInteractionUIView: UIView {
+final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost {
+
+    var gestureCanvasInteractionView: UIView { self }
     
     override var canBecomeFirstResponder: Bool { true }
     override var canResignFirstResponder: Bool { true }
