@@ -51,6 +51,8 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     private var doubleTapDragGestureRecognizer: DoubleTapDragGestureRecognizer?
     /// Pointer hover on supported devices.
     private var hoverGestureRecognizer: UIHoverGestureRecognizer?
+    /// **Drag** per touch, for canvases that route interactions.
+    private var multiDragGestureRecognizer: GestureCanvasMultiDragGestureRecognizer?
 
     let canvas: GestureCanvas
     
@@ -184,10 +186,27 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         addGestureRecognizer(hover)
         hoverGestureRecognizer = hover
 
+        let multiDrag = GestureCanvasMultiDragGestureRecognizer(canvas: canvas, contentView: contentView)
+        multiDrag.delegate = self
+        addGestureRecognizer(multiDrag)
+        multiDragGestureRecognizer = multiDrag
+
         tap.require(toFail: doubleTapDrag)
         doubleTap.require(toFail: doubleTapDrag)
         longPress.require(toFail: doubleTapDrag)
         tap.require(toFail: doubleTap)
+        multiDrag.require(toFail: doubleTapDrag)
+    }
+    
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer == pinchGestureRecognizer else {
+            return super.gestureRecognizerShouldBegin(gestureRecognizer)
+        }
+        /// A drag already under way owns its touches. A finger merely resting on
+        /// content does not, so a pinch starting over nodes still zooms, cancelling
+        /// any drag through `startZoom`.
+        guard !canvas.isInteractionDragging else { return false }
+        return canvas.delegate?.gestureCanvasAllowPinch(canvas) == true
     }
     
     @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
@@ -250,10 +269,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         case .possible:
             break
         case .began:
-            if canvas.isInteractionDragging {
-                canvas.cancelInteraction()
-            }
-            guard canvas.delegate?.gestureCanvasAllowPinch(canvas) == true else { return }
+            /// Permission is resolved in `gestureRecognizerShouldBegin(_:)`.
             startZoom = Zoom(
                 location: location,
                 coordinate: canvas.coordinate.unlimited
@@ -472,6 +488,11 @@ extension GestureCanvasInteractionUIView: UIGestureRecognizerDelegate {
 //        }
         if gestureRecognizer == pinchGestureRecognizer {
             return otherGestureRecognizer != doubleTapDragGestureRecognizer
+        }
+        if gestureRecognizer == multiDragGestureRecognizer || otherGestureRecognizer == multiDragGestureRecognizer {
+            // Every touch drags on its own, beside a pinch made of background touches.
+            return gestureRecognizer != doubleTapDragGestureRecognizer
+                && otherGestureRecognizer != doubleTapDragGestureRecognizer
         }
         return false
     }

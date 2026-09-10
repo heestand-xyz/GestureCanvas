@@ -17,6 +17,7 @@ public struct GestureCanvasGestureView: View {
     @State private var asSelection: Bool = false
 
     @State private var isObjectDragging: Bool = false
+    @State private var dragID: GestureCanvasDragID?
     @GestureState private var isDragActive: Bool = false
     
     public var body: some View {
@@ -84,7 +85,7 @@ public struct GestureCanvasGestureView: View {
             )
             .onChange(of: canvas.isZooming) { _, isZooming in
                 if isObjectDragging, isZooming {
-                    canvas.cancelInteraction()
+                    cancelObjectDrag()
                 }
                 if startCoordinate != nil, isZooming {
                     canvas.cancelPan()
@@ -93,32 +94,44 @@ public struct GestureCanvasGestureView: View {
             }
             .onChange(of: isDragActive) { _, isActive in
                 if !isActive, isObjectDragging {
-                    canvas.cancelInteraction()
-                    isObjectDragging = false
+                    cancelObjectDrag()
                 }
             }
             .onDisappear {
                 if isObjectDragging {
-                    canvas.cancelInteraction()
-                    isObjectDragging = false
+                    cancelObjectDrag()
                 }
             }
     }
     
+    /// Direct touches belong to the multi drag recognizer, one drag each.
+    private var isSupersededByMultiDrag: Bool {
+#if os(macOS)
+        false
+#else
+        canvas.ownsDirectTouches
+#endif
+    }
+
     private func onDragChanged(_ value: DragGesture.Value) {
+        guard !isSupersededByMultiDrag else { return }
         // This space belongs to the hosted content, already inset by UIKit/AppKit.
         // Subtracting the outer safe area again shifts hits down and right.
         let location = value.location + canvas.zoomCoordinateOffset
         let startLocation = value.startLocation + canvas.zoomCoordinateOffset
         if isObjectDragging {
-            canvas.updateInteractionDrag(at: location)
+            if let dragID {
+                canvas.updateInteractionDrag(id: dragID, at: location)
+            }
             return
         }
         if startCoordinate == nil {
+            let newDragID = GestureCanvasDragID()
             if !canvas.isZooming,
-               canvas.beginInteractionDrag(at: startLocation) {
+               canvas.beginInteractionDrag(id: newDragID, at: startLocation) {
                 isObjectDragging = true
-                canvas.updateInteractionDrag(at: location)
+                dragID = newDragID
+                canvas.updateInteractionDrag(id: newDragID, at: location)
                 return
             }
             asSelection = {
@@ -149,10 +162,22 @@ public struct GestureCanvasGestureView: View {
         }
     }
     
+    private func cancelObjectDrag() {
+        if let dragID {
+            canvas.cancelInteractionDrag(id: dragID)
+        }
+        dragID = nil
+        isObjectDragging = false
+    }
+    
     private func onDragEnded(_ value: DragGesture.Value) {
+        guard !isSupersededByMultiDrag else { return }
         let location = value.location + canvas.zoomCoordinateOffset
         if isObjectDragging {
-            canvas.endInteractionDrag(at: location)
+            if let dragID {
+                canvas.endInteractionDrag(id: dragID, at: location)
+            }
+            dragID = nil
             isObjectDragging = false
             return
         }

@@ -79,9 +79,14 @@ public final class GestureCanvas: Sendable {
     @ObservationIgnored
     weak var interactionDragDelegate: GestureCanvasInteractionDelegate?
     @ObservationIgnored
-    var isInteractionDragging: Bool = false
+    var interactionDragIDs: Set<GestureCanvasDragID> = []
+    var isInteractionDragging: Bool { !interactionDragIDs.isEmpty }
     @ObservationIgnored
     var isCancellingInteraction: Bool = false
+
+    /// The multi drag recognizer owns every direct touch while this is true.
+    @ObservationIgnored
+    var ownsDirectTouches: Bool = false
 
 #if os(macOS)
     @ObservationIgnored
@@ -129,9 +134,7 @@ public final class GestureCanvas: Sendable {
 #if os(macOS)
         setToolTip(nil)
 #endif
-        if isInteractionDragging {
-            cancelInteraction()
-        }
+        /// A pan runs beside content drags, one touch each.
         isPanning = true
         delegate?.gestureCanvasDidStartPan(self, at: location)
     }

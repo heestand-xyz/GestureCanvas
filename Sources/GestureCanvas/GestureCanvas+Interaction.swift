@@ -11,33 +11,49 @@ extension GestureCanvas {
         return interactionDelegate?.gestureCanvas(self, longPressAt: location) ?? false
     }
 
-    func beginInteractionDrag(at location: CGPoint) -> Bool {
+    /// Content under a touch that has not started to move yet.
+    func interactionHasContent(at location: CGPoint) -> Bool {
+        interactionDelegate?.gestureCanvas(self, hasContentAt: location) ?? false
+    }
+
+    func beginInteractionDrag(id: GestureCanvasDragID, at location: CGPoint) -> Bool {
 #if os(macOS)
         setToolTip(nil)
 #endif
-        guard !isZooming, !isPanning, !isSelecting,
+        guard !isZooming,
               let interactionDelegate,
-              interactionDelegate.gestureCanvas(self, beginDragAt: location) else { return false }
+              interactionDelegate.gestureCanvas(self, beginDrag: id, at: location) else { return false }
         interactionDragDelegate = interactionDelegate
-        isInteractionDragging = true
+        interactionDragIDs.insert(id)
         gestureStart()
         return true
     }
 
-    func updateInteractionDrag(at location: CGPoint) {
-        guard isInteractionDragging else { return }
-        interactionDragDelegate?.gestureCanvas(self, updateDragAt: location)
+    func updateInteractionDrag(id: GestureCanvasDragID, at location: CGPoint) {
+        guard interactionDragIDs.contains(id) else { return }
+        interactionDragDelegate?.gestureCanvas(self, updateDrag: id, at: location)
     }
 
-    func endInteractionDrag(at location: CGPoint) {
-        guard isInteractionDragging else { return }
+    func endInteractionDrag(id: GestureCanvasDragID, at location: CGPoint) {
+        guard interactionDragIDs.remove(id) != nil else { return }
         let delegate = interactionDragDelegate
-        isInteractionDragging = false
-        interactionDragDelegate = nil
-        delegate?.gestureCanvas(self, endDragAt: location)
+        if interactionDragIDs.isEmpty {
+            interactionDragDelegate = nil
+        }
+        delegate?.gestureCanvas(self, endDrag: id, at: location)
     }
 
-    /// Ends ownership of the current interaction without committing its action.
+    /// Ends one drag without committing its action, leaving any other drag running.
+    public func cancelInteractionDrag(id: GestureCanvasDragID) {
+        guard interactionDragIDs.remove(id) != nil else { return }
+        let delegate = interactionDragDelegate
+        if interactionDragIDs.isEmpty {
+            interactionDragDelegate = nil
+        }
+        delegate?.gestureCanvas(self, cancelDrag: id)
+    }
+
+    /// Ends ownership of every current interaction without committing its action.
     /// Call before replacing a canvas's content or its interaction delegate.
     public func cancelInteraction() {
 #if os(macOS)
@@ -47,7 +63,7 @@ extension GestureCanvas {
         isCancellingInteraction = true
         defer { isCancellingInteraction = false }
         let delegate = interactionDragDelegate ?? interactionDelegate
-        isInteractionDragging = false
+        interactionDragIDs.removeAll()
         interactionDragDelegate = nil
         delegate?.gestureCanvasCancelInteraction(self)
         delegate?.gestureCanvas(self, hoverAt: nil)
