@@ -309,7 +309,11 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             startZoom = nil
             let lastLocation: CGPoint = lastPinchZoomLocation ?? location
             lastPinchZoomLocation = nil
-            canvas.willEndZoom(at: lastLocation)
+            if recognizer.state == .ended {
+                canvas.willEndZoom(at: lastLocation)
+            } else {
+                canvas.cancelZoom()
+            }
             Task {
                 await canvas.gestureEnded(at: lastLocation)
                 canvas.didEndZoom(at: lastLocation)
@@ -371,7 +375,11 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         case .ended, .cancelled, .failed:
             guard let startZoom: Zoom else { return }
             self.startZoom = nil
-            canvas.willEndZoom(at: startZoom.location)
+            if recognizer.state == .ended {
+                canvas.willEndZoom(at: startZoom.location)
+            } else {
+                canvas.cancelZoom()
+            }
             Task {
                 await canvas.gestureEnded(at: startZoom.location)
                 canvas.didEndZoom(at: startZoom.location)
