@@ -94,6 +94,10 @@ public final class GestureCanvas: Sendable {
     var ownsDirectTouches: Bool = false
 
 #if os(macOS)
+    /// Captured by the native mouse-down monitor without invalidating SwiftUI's active gestures.
+    @ObservationIgnored
+    var tapKeyboardFlags: Set<GestureCanvasKeyboardFlag> = []
+
     @ObservationIgnored
     public internal(set) var toolTip: GestureCanvasToolTip?
     public internal(set) var hasToolTip = false

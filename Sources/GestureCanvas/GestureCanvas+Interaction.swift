@@ -57,6 +57,7 @@ extension GestureCanvas {
     /// Call before replacing a canvas's content or its interaction delegate.
     public func cancelInteraction() {
 #if os(macOS)
+        tapKeyboardFlags = []
         setToolTip(nil)
 #endif
         guard !isCancellingInteraction else { return }

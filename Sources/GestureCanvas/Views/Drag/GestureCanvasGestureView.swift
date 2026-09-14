@@ -19,9 +19,6 @@ public struct GestureCanvasGestureView: View {
     @State private var isObjectDragging: Bool = false
     @State private var dragID: GestureCanvasDragID?
     @GestureState private var isDragActive: Bool = false
-
-    // Keep the press snapshot after release while the single tap waits for a double tap to fail.
-    @State private var tapKeyboardFlags: Set<GestureCanvasKeyboardFlag> = []
     
     public var body: some View {
         Color.gray.opacity(0.001)
@@ -30,7 +27,7 @@ public struct GestureCanvasGestureView: View {
                 SpatialTapGesture(count: 2, coordinateSpace: GestureCanvasCoordinate.space)
                     .onEnded { value in
                         let location = value.location + canvas.zoomCoordinateOffset
-                        if !canvas.interactionTap(at: location, count: 2, keyboardFlags: []) {
+                        if !canvas.interactionTap(at: location, count: 2, keyboardFlags: canvas.tapKeyboardFlags) {
                             canvas.backgroundDoubleTap(at: location)
                         }
                     },
@@ -40,7 +37,7 @@ public struct GestureCanvasGestureView: View {
                 SpatialTapGesture(count: 1, coordinateSpace: GestureCanvasCoordinate.space)
                     .onEnded { value in
                         let location = value.location + canvas.zoomCoordinateOffset
-                        if !canvas.interactionTap(at: location, count: 1, keyboardFlags: []) {
+                        if !canvas.interactionTap(at: location, count: 1, keyboardFlags: canvas.tapKeyboardFlags) {
                             canvas.backgroundTap(at: location)
                         }
                     },
@@ -48,12 +45,7 @@ public struct GestureCanvasGestureView: View {
             )
             .gesture(
                 LongPressGesture()
-                    .onChanged { active in
-                        guard active else { return }
-                        tapKeyboardFlags = canvas.keyboardFlags
-                    }
                     .onEnded { _ in
-                        defer { tapKeyboardFlags = [] }
                         if let location = canvas.mouseLocation {
                             _ = canvas.interactionLongPress(at: location)
                         }
@@ -61,18 +53,16 @@ public struct GestureCanvasGestureView: View {
                     .exclusively(before:
                         SpatialTapGesture(count: 2, coordinateSpace: GestureCanvasCoordinate.space)
                             .onEnded { value in
-                                defer { tapKeyboardFlags = [] }
                                 let location = value.location + canvas.zoomCoordinateOffset
-                                if !canvas.interactionTap(at: location, count: 2, keyboardFlags: tapKeyboardFlags) {
+                                if !canvas.interactionTap(at: location, count: 2, keyboardFlags: canvas.tapKeyboardFlags) {
                                     canvas.backgroundDoubleTap(at: location)
                                 }
                             }
                             .exclusively(before:
                                 SpatialTapGesture(count: 1, coordinateSpace: GestureCanvasCoordinate.space)
                                     .onEnded { value in
-                                        defer { tapKeyboardFlags = [] }
                                         let location = value.location + canvas.zoomCoordinateOffset
-                                        if !canvas.interactionTap(at: location, count: 1, keyboardFlags: tapKeyboardFlags) {
+                                        if !canvas.interactionTap(at: location, count: 1, keyboardFlags: canvas.tapKeyboardFlags) {
                                             canvas.backgroundTap(at: location)
                                         }
                                     }
@@ -94,9 +84,6 @@ public struct GestureCanvasGestureView: View {
                     }
             )
             .onChange(of: canvas.isZooming) { _, isZooming in
-                if isZooming {
-                    tapKeyboardFlags = []
-                }
                 if isObjectDragging, isZooming {
                     cancelObjectDrag()
                 }
@@ -111,13 +98,9 @@ public struct GestureCanvasGestureView: View {
                 }
             }
             .onDisappear {
-                tapKeyboardFlags = []
                 if isObjectDragging {
                     cancelObjectDrag()
                 }
-            }
-            .onChange(of: canvas.routesInteractions) { _, _ in
-                tapKeyboardFlags = []
             }
     }
     
@@ -132,7 +115,6 @@ public struct GestureCanvasGestureView: View {
 
     private func onDragChanged(_ value: DragGesture.Value) {
         guard !isSupersededByMultiDrag else { return }
-        tapKeyboardFlags = []
         // This space belongs to the hosted content, already inset by UIKit/AppKit.
         // Subtracting the outer safe area again shifts hits down and right.
         let location = value.location + canvas.zoomCoordinateOffset

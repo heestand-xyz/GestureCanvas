@@ -37,7 +37,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     private var hasSecondaryDragCursor = false
     private var toolTipPresenter: GestureCanvasToolTipPresenter?
 
-    private var flagsMonitor: Any?
+    private var inputMonitor: Any?
     private var magnifyMonitor: Any?
 
     public init(canvas: GestureCanvas,
@@ -65,9 +65,13 @@ public class GestureCanvasTrackpadNSView: NSView {
             ])
         }
         
-        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] in
-            self?.flagsChanged(with: $0)
-            return $0
+        inputMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged, .leftMouseDown]) { [weak self] event in
+            if event.type == .leftMouseDown {
+                self?.captureTapKeyboardFlags(with: event)
+            } else {
+                self?.flagsChanged(with: event)
+            }
+            return event
         }
         magnifyMonitor = NSEvent.addLocalMonitorForEvents(matching: .magnify) { [weak self] in
             self?.magnify(with: $0)
@@ -89,8 +93,8 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     deinit {
-        if let flagsMonitor {
-            NSEvent.removeMonitor(flagsMonitor)
+        if let inputMonitor {
+            NSEvent.removeMonitor(inputMonitor)
         }
         if let magnifyMonitor {
             NSEvent.removeMonitor(magnifyMonitor)
@@ -436,6 +440,19 @@ public class GestureCanvasTrackpadNSView: NSView {
     }
     
     // MARK: - Flags
+
+    private func captureTapKeyboardFlags(with event: NSEvent) {
+        guard let window, event.window === window,
+              bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        // Observe the event before SwiftUI handles it, and always return it unchanged.
+        // Replacing the snapshot on every mouse down also clears a previous click's flags.
+        var keyboardFlags: Set<GestureCanvasKeyboardFlag> = []
+        if event.modifierFlags.contains(.command) { keyboardFlags.insert(.command) }
+        if event.modifierFlags.contains(.control) { keyboardFlags.insert(.control) }
+        if event.modifierFlags.contains(.shift) { keyboardFlags.insert(.shift) }
+        if event.modifierFlags.contains(.option) { keyboardFlags.insert(.option) }
+        canvas.tapKeyboardFlags = keyboardFlags
+    }
     
     public override func flagsChanged(with event: NSEvent) {
         var keyboardFlags: Set<GestureCanvasKeyboardFlag> = []
