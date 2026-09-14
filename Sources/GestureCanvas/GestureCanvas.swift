@@ -62,6 +62,11 @@ public final class GestureCanvas: Sendable {
     @ObservationIgnored
     public weak var delegate: GestureCanvasDelegate?
 
+#if os(iOS)
+    @ObservationIgnored
+    weak var keyboardResponder: UIResponder?
+#endif
+
     @ObservationIgnored
     public weak var interactionDelegate: GestureCanvasInteractionDelegate? {
         willSet {

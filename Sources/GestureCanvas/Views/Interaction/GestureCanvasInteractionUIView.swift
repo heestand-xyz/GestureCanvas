@@ -21,8 +21,16 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window != nil {
+#if os(iOS)
+            canvas.keyboardResponder = self
+#endif
             _ = becomeFirstResponder()
         } else {
+#if os(iOS)
+            if canvas.keyboardResponder === self {
+                canvas.keyboardResponder = nil
+            }
+#endif
             canvas.cancelInteraction()
         }
     }
@@ -434,6 +442,51 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     }
     
     // MARK: - Presses
+
+#if os(iOS)
+    private lazy var canvasKeyCommands: [UIKeyCommand] = GestureCanvasKeyboardKey.allCases.flatMap { key in
+        [UIKeyModifierFlags(), .shift].map { modifiers in
+            let command = UIKeyCommand(
+                input: key.input,
+                modifierFlags: modifiers,
+                action: #selector(performCanvasKeyCommand(_:))
+            )
+            // Only offered while this canvas is first responder, never while typing.
+            command.wantsPriorityOverSystemBehavior = true
+            // Arrow navigation follows physical canvas directions in every layout.
+            command.allowsAutomaticMirroring = false
+            return command
+        }
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        (super.keyCommands ?? []) + (isFirstResponder ? canvasKeyCommands : [])
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(performCanvasKeyCommand(_:)) {
+            guard let command = sender as? UIKeyCommand else { return false }
+            return canPerformCanvasKeyCommand(command)
+        }
+        return super.canPerformAction(action, withSender: sender)
+    }
+
+    private func canPerformCanvasKeyCommand(_ command: UIKeyCommand) -> Bool {
+        guard isFirstResponder,
+              let key = GestureCanvasKeyboardKey.allCases.first(where: { $0.input == command.input }),
+              let delegate = canvas.delegate as? any GestureCanvasKeyboardDelegate else { return false }
+        let modifiers: Set<GestureCanvasKeyboardFlag> = command.modifierFlags.contains(.shift) ? [.shift] : []
+        return delegate.gestureCanvasCanPerformKeyCommand(canvas, key: key, modifiers: modifiers)
+    }
+
+    @objc private func performCanvasKeyCommand(_ command: UIKeyCommand) {
+        guard canPerformCanvasKeyCommand(command),
+              let key = GestureCanvasKeyboardKey.allCases.first(where: { $0.input == command.input }),
+              let delegate = canvas.delegate as? any GestureCanvasKeyboardDelegate else { return }
+        let modifiers: Set<GestureCanvasKeyboardFlag> = command.modifierFlags.contains(.shift) ? [.shift] : []
+        delegate.gestureCanvasPerformKeyCommand(canvas, key: key, modifiers: modifiers)
+    }
+#endif
     
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         super.pressesBegan(presses, with: event)
