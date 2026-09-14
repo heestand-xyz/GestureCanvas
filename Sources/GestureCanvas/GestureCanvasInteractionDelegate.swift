@@ -7,7 +7,9 @@ import CoreGraphics
 /// Drags are keyed by `GestureCanvasDragID` since touch canvases run one drag per touch.
 @MainActor
 public protocol GestureCanvasInteractionDelegate: AnyObject {
-    func gestureCanvas(_ canvas: GestureCanvas, tapAt location: CGPoint, count: Int) -> Bool
+    /// Keyboard flags are captured at press start, before tap recognition can be delayed.
+    func gestureCanvas(_ canvas: GestureCanvas, tapAt location: CGPoint, count: Int,
+                       keyboardFlags: Set<GestureCanvasKeyboardFlag>) -> Bool
     func gestureCanvas(_ canvas: GestureCanvas, longPressAt location: CGPoint) -> Bool
     func gestureCanvas(_ canvas: GestureCanvas, contextAt location: CGPoint) -> Bool
     /// Asked on touch down, before any movement, to tell content touches from background touches.

@@ -143,7 +143,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     
     private func addGestures() {
         
-        let tap = UITapGestureRecognizer(target: self, action: #selector(didTap(_:)))
+        let tap = GestureCanvasTapGestureRecognizer(canvas: canvas, target: self, action: #selector(didTap(_:)))
         tap.numberOfTapsRequired = 1
         tap.delegate = self
         addGestureRecognizer(tap)
@@ -177,7 +177,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         addGestureRecognizer(pinch)
         self.pinchGestureRecognizer = pinch
         
-        let doubleTap = UITapGestureRecognizer(target: self, action: #selector(didDoubleTap(_:)))
+        let doubleTap = GestureCanvasTapGestureRecognizer(canvas: canvas, target: self, action: #selector(didDoubleTap(_:)))
         doubleTap.numberOfTapsRequired = 2
         doubleTap.delegate = self
         addGestureRecognizer(doubleTap)
@@ -217,10 +217,10 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         return canvas.delegate?.gestureCanvasAllowPinch(canvas) == true
     }
     
-    @objc private func didTap(_ recognizer: UITapGestureRecognizer) {
+    @objc private func didTap(_ recognizer: GestureCanvasTapGestureRecognizer) {
         if recognizer.state == .ended {
             let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
-            if canvas.interactionTap(at: location, count: 1) { return }
+            if canvas.interactionTap(at: location, count: 1, keyboardFlags: recognizer.keyboardFlags) { return }
             guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundTap(at: location)
         }
@@ -331,10 +331,10 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         }
     }
     
-    @objc private func didDoubleTap(_ recognizer: UITapGestureRecognizer) {
+    @objc private func didDoubleTap(_ recognizer: GestureCanvasTapGestureRecognizer) {
         if recognizer.state == .ended {
             let location: CGPoint = recognizer.location(in: contentView) + canvas.zoomCoordinateOffset
-            if canvas.interactionTap(at: location, count: 2) { return }
+            if canvas.interactionTap(at: location, count: 2, keyboardFlags: recognizer.keyboardFlags) { return }
             guard canvas.allowInteraction(at: location) else { return }
             canvas.backgroundDoubleTap(at: location)
         }

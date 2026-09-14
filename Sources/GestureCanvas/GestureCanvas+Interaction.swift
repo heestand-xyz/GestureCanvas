@@ -1,9 +1,9 @@
 import CoreGraphics
 
 extension GestureCanvas {
-    func interactionTap(at location: CGPoint, count: Int) -> Bool {
+    func interactionTap(at location: CGPoint, count: Int, keyboardFlags: Set<GestureCanvasKeyboardFlag>) -> Bool {
         guard !isInteractionDragging else { return true }
-        return interactionDelegate?.gestureCanvas(self, tapAt: location, count: count) ?? false
+        return interactionDelegate?.gestureCanvas(self, tapAt: location, count: count, keyboardFlags: keyboardFlags) ?? false
     }
 
     func interactionLongPress(at location: CGPoint) -> Bool {
