@@ -126,6 +126,7 @@ public struct GestureCanvasGestureView: View {
             return
         }
         if startCoordinate == nil {
+            guard !canvas.isDragExcluded(at: startLocation) else { return }
             let newDragID = GestureCanvasDragID()
             if !canvas.isZooming,
                canvas.beginInteractionDrag(id: newDragID, at: startLocation) {

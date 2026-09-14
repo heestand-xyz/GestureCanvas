@@ -35,6 +35,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
             }
 #endif
         }
+        .environment(canvas)
         // iOS 18 & macOS 15
 //        .onGeometryChange(for: CGSize.self) { geometry in
 //            geometry.size

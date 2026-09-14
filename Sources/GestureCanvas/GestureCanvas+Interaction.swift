@@ -1,6 +1,12 @@
 import CoreGraphics
 
 extension GestureCanvas {
+    func isDragExcluded(at location: CGPoint) -> Bool {
+        let point = CGPoint(x: location.x - zoomCoordinateOffset.x,
+                            y: location.y - zoomCoordinateOffset.y)
+        return dragExclusionPaths.values.contains { $0.contains(point) }
+    }
+
     func interactionTap(at location: CGPoint, count: Int, keyboardFlags: Set<GestureCanvasKeyboardFlag>) -> Bool {
         guard !isInteractionDragging else { return true }
         return interactionDelegate?.gestureCanvas(self, tapAt: location, count: count, keyboardFlags: keyboardFlags) ?? false

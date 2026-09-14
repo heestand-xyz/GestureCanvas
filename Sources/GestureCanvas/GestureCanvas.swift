@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 #if os(macOS)
 import AppKit
 #else
@@ -80,6 +81,9 @@ public final class GestureCanvas: Sendable {
     }
 
     var routesInteractions: Bool = false
+
+    @ObservationIgnored
+    var dragExclusionPaths: [UUID: Path] = [:]
 
     @ObservationIgnored
     weak var interactionDragDelegate: GestureCanvasInteractionDelegate?

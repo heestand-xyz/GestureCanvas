@@ -65,7 +65,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
                 startLocation: location,
                 startCanvasOffset: canvas.coordinate.limited.offset,
                 isContent: canvas.interactionHasContent(at: location),
-                mode: .pending
+                mode: canvas.isDragExcluded(at: location) ? .ignored : .pending
             )
         }
         canvas.ownsDirectTouches = !tracks.isEmpty
