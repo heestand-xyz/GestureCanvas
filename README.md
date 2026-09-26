@@ -24,6 +24,16 @@ that animation. Touch and trackpad input remain available in the same session;
 pointer click-drags continue to use the existing selection/content gestures.
 macOS does not use this mode.
 
+On iOS, `GestureCanvasKeyboardDelegate.gestureCanvasKeyCommands(_:)` supplies the
+native canvas responder's keyboard shortcuts, including character keys and all
+Command, Control, Shift, and Option combinations. The canvas asks
+`gestureCanvasCanPerformKeyCommand(_:key:modifiers:)` about current availability
+and forwards execution to `gestureCanvasPerformKeyCommand(_:key:modifiers:)`.
+Commands are offered only while the canvas is first responder, so text inputs
+keep their own shortcuts. The default list preserves Delete and arrow keys with
+and without Shift; an app's custom list replaces it and should include any of
+those editing commands it wants to keep.
+
 Pinch may take over during the first 250 ms of a drag. After that, a content drag
 keeps its contact when another finger arrives; a held canvas pan also keeps its
 contact when the new finger lands on content. The new finger can independently

@@ -510,13 +510,15 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     // MARK: - Presses
 
 #if os(iOS)
-    private lazy var canvasKeyCommands: [UIKeyCommand] = GestureCanvasKeyboardKey.allCases.flatMap { key in
-        [UIKeyModifierFlags(), .shift].map { modifiers in
+    private var canvasKeyCommands: [UIKeyCommand] {
+        guard let delegate = canvas.delegate as? any GestureCanvasKeyboardDelegate else { return [] }
+        return delegate.gestureCanvasKeyCommands(canvas).map { shortcut in
             let command = UIKeyCommand(
-                input: key.input,
-                modifierFlags: modifiers,
+                input: shortcut.key.input,
+                modifierFlags: shortcut.modifierFlags,
                 action: #selector(performCanvasKeyCommand(_:))
             )
+            command.discoverabilityTitle = shortcut.title
             // Only offered while this canvas is first responder, never while typing.
             command.wantsPriorityOverSystemBehavior = true
             // Arrow navigation follows physical canvas directions in every layout.
@@ -539,18 +541,23 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
 
     private func canPerformCanvasKeyCommand(_ command: UIKeyCommand) -> Bool {
         guard isFirstResponder,
-              let key = GestureCanvasKeyboardKey.allCases.first(where: { $0.input == command.input }),
+              let shortcut = canvasKeyCommand(for: command),
               let delegate = canvas.delegate as? any GestureCanvasKeyboardDelegate else { return false }
-        let modifiers: Set<GestureCanvasKeyboardFlag> = command.modifierFlags.contains(.shift) ? [.shift] : []
-        return delegate.gestureCanvasCanPerformKeyCommand(canvas, key: key, modifiers: modifiers)
+        return delegate.gestureCanvasCanPerformKeyCommand(canvas, key: shortcut.key, modifiers: shortcut.modifiers)
+    }
+
+    private func canvasKeyCommand(for command: UIKeyCommand) -> GestureCanvasKeyCommand? {
+        guard let delegate = canvas.delegate as? any GestureCanvasKeyboardDelegate else { return nil }
+        return delegate.gestureCanvasKeyCommands(canvas).first { shortcut in
+            shortcut.key.input == command.input && shortcut.modifierFlags == command.modifierFlags
+        }
     }
 
     @objc private func performCanvasKeyCommand(_ command: UIKeyCommand) {
         guard canPerformCanvasKeyCommand(command),
-              let key = GestureCanvasKeyboardKey.allCases.first(where: { $0.input == command.input }),
+              let shortcut = canvasKeyCommand(for: command),
               let delegate = canvas.delegate as? any GestureCanvasKeyboardDelegate else { return }
-        let modifiers: Set<GestureCanvasKeyboardFlag> = command.modifierFlags.contains(.shift) ? [.shift] : []
-        delegate.gestureCanvasPerformKeyCommand(canvas, key: key, modifiers: modifiers)
+        delegate.gestureCanvasPerformKeyCommand(canvas, key: shortcut.key, modifiers: shortcut.modifiers)
     }
 #endif
     
