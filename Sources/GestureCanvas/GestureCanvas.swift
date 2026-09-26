@@ -40,6 +40,10 @@ public protocol GestureCanvasDelegate: AnyObject {
     func gestureCanvasEditMenuInteractionDelegate(_ canvas: GestureCanvas) -> UIEditMenuInteractionDelegate?
 
     func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
+
+    /// Visible content bounds in canvas coordinates. Returning nil keeps legacy panning.
+    /// Native scrolling pads these bounds by half the viewport on every side.
+    func gestureCanvasScrollBounds(_ canvas: GestureCanvas) -> CGRect?
 #endif
     
     func gestureCanvasDidStartPan(_ canvas: GestureCanvas, at location: CGPoint)
@@ -112,14 +116,27 @@ public final class GestureCanvas: Sendable {
     public private(set) var coordinate: GestureCanvasDynamicCoordinate {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
+#if !os(macOS)
+            scrollController?.coordinateChanged()
+#endif
         }
     }
+
+#if !os(macOS)
+    @ObservationIgnored
+    weak var scrollController: GestureCanvasScrollController?
+#endif
     
     private var currentCoordinate: GestureCanvasCoordinate {
+#if !os(macOS)
+        if scrollController != nil {
+            return coordinate.limited
+        }
+#endif
         if limitsZoom {
-            coordinate.limited
+            return coordinate.limited
         } else {
-            coordinate.unlimited
+            return coordinate.unlimited
         }
     }
     
@@ -306,6 +323,16 @@ extension GestureCanvas {
     }
     
     internal func gestureUpdate(to coordinate: GestureCanvasCoordinate, at location: CGPoint) {
+#if !os(macOS)
+        if let scrollController {
+            let zoomLimited = limitsZoom ? softLimitZoom(coordinate: coordinate, at: location) : coordinate
+            self.coordinate = .limited(
+                scrollController.limit(zoomLimited, withTension: true),
+                unlimited: coordinate
+            )
+            return
+        }
+#endif
         if limitsZoom {
             let limitedCoordinate: GestureCanvasCoordinate = softLimitZoom(
                 coordinate: coordinate,
@@ -322,6 +349,19 @@ extension GestureCanvas {
     
     @discardableResult
     internal func gestureEnded(at location: CGPoint) async -> Bool {
+#if !os(macOS)
+        if let scrollController {
+            let zoomLimited = limitsZoom
+                ? hardLimitZoom(coordinate: coordinate.unlimited, at: location)
+                : coordinate.unlimited
+            let target = scrollController.limit(zoomLimited, withTension: false)
+            if coordinate.limited != target {
+                return await animate(to: target)
+            }
+            coordinate = .unlimited(target)
+            return true
+        }
+#endif
         if limitsZoom, zoomNeedsLimit(coordinate.unlimited) {
             let hardLimitedCoordinate: GestureCanvasCoordinate = hardLimitZoom(
                 coordinate: coordinate.unlimited,

@@ -18,6 +18,8 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
     /// Matches the movement a SwiftUI drag gesture needs before it starts.
     var dragThreshold: CGFloat = 10
 
+    weak var scrollView: UIScrollView?
+
     private enum Mode {
         /// Below the drag threshold.
         case pending
@@ -65,7 +67,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
                 startLocation: location,
                 startCanvasOffset: canvas.coordinate.limited.offset,
                 isContent: canvas.interactionHasContent(at: location),
-                mode: canvas.isDragExcluded(at: location) ? .ignored : .pending
+                mode: canvas.isDragExcluded(at: location) || isScrollTouch(touch) ? .ignored : .pending
             )
         }
         canvas.ownsDirectTouches = !tracks.isEmpty
@@ -111,6 +113,23 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
         releaseAllTracks()
     }
 
+    /// Keep the contacts ignored until release so the end of a pinch cannot
+    /// restart a drag using its pre-zoom location or offset.
+    func cancelForZoom() {
+        for key in Array(tracks.keys) {
+            guard var track = tracks[key] else { continue }
+            if track.mode == .interaction {
+                canvas.cancelInteractionDrag(id: track.dragID)
+            } else if track.mode == .pan {
+                canvas.cancelPan()
+            }
+            track.mode = .ignored
+            tracks[key] = track
+        }
+        panTouch = nil
+        panStartCoordinate = nil
+    }
+
     private func releaseAllTracks() {
         let tracked = tracks.values
         tracks.removeAll()
@@ -138,7 +157,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
             canvas.updateInteractionDrag(id: track.dragID, at: location)
             return .interaction
         }
-        guard panTouch == nil, !canvas.isSelecting else { return .ignored }
+        guard scrollView == nil, panTouch == nil, !canvas.isSelecting else { return .ignored }
         panTouch = key
         panStartCoordinate = canvas.coordinate.unlimited
         canvas.startPan(at: track.startLocation)
@@ -213,6 +232,11 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
 
     private func location(of touch: UITouch) -> CGPoint {
         touch.location(in: contentView) + canvas.zoomCoordinateOffset
+    }
+
+    private func isScrollTouch(_ touch: UITouch) -> Bool {
+        guard let scrollView, let view = touch.view else { return false }
+        return view === scrollView || view.isDescendant(of: scrollView)
     }
 }
 

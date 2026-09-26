@@ -31,6 +31,9 @@ extension GestureCanvas {
               interactionDelegate.gestureCanvas(self, beginDrag: id, at: location) else { return false }
         interactionDragDelegate = interactionDelegate
         interactionDragIDs.insert(id)
+#if !os(macOS)
+        scrollController?.interactionBegan()
+#endif
         gestureStart()
         return true
     }
@@ -47,6 +50,9 @@ extension GestureCanvas {
             interactionDragDelegate = nil
         }
         delegate?.gestureCanvas(self, endDrag: id, at: location)
+#if !os(macOS)
+        scrollController?.interactionEnded()
+#endif
     }
 
     /// Ends one drag without committing its action, leaving any other drag running.
@@ -57,6 +63,9 @@ extension GestureCanvas {
             interactionDragDelegate = nil
         }
         delegate?.gestureCanvas(self, cancelDrag: id)
+#if !os(macOS)
+        scrollController?.interactionEnded()
+#endif
     }
 
     /// Ends ownership of every current interaction without committing its action.
@@ -69,6 +78,9 @@ extension GestureCanvas {
         guard !isCancellingInteraction else { return }
         isCancellingInteraction = true
         defer { isCancellingInteraction = false }
+#if !os(macOS)
+        scrollController?.cancelScrolling()
+#endif
         let delegate = interactionDragDelegate ?? interactionDelegate
         interactionDragIDs.removeAll()
         interactionDragDelegate = nil

@@ -62,6 +62,9 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     /// **Drag** per touch, for canvases that route interactions.
     private var multiDragGestureRecognizer: GestureCanvasMultiDragGestureRecognizer?
 
+    private var scrollController: GestureCanvasScrollController?
+    private var zoomSequence: UInt = 0
+
     let canvas: GestureCanvas
     
     let contentView: UIView
@@ -138,6 +141,54 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             contentView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
         ])
     }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        scrollController?.layout(in: contentView.frame)
+    }
+
+    func updateScrollBounds(_ bounds: CGRect?) {
+        if let bounds {
+            if let scrollController {
+                scrollController.update(contentBounds: bounds)
+                return
+            }
+            let controller = GestureCanvasScrollController(canvas: canvas, contentView: contentView, contentBounds: bounds)
+            insertSubview(controller.scrollView, belowSubview: contentView)
+            // Keep UIKit's pan delegate. Our parent recognizers arbitrate with it.
+            if let doubleTapDragGestureRecognizer {
+                controller.scrollView.panGestureRecognizer.require(toFail: doubleTapDragGestureRecognizer)
+            }
+            scrollController = controller
+            canvas.scrollController = controller
+            multiDragGestureRecognizer?.scrollView = controller.scrollView
+            panGestureRecognizer?.isEnabled = false
+        } else {
+            scrollController?.detach()
+            scrollController = nil
+            multiDragGestureRecognizer?.scrollView = nil
+            panGestureRecognizer?.isEnabled = true
+        }
+        setNeedsLayout()
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        guard hit != nil, let scrollController else { return hit }
+        let location = convert(point, to: contentView) + canvas.zoomCoordinateOffset
+        guard contentView.bounds.contains(convert(point, to: contentView)),
+              !canvas.isDragExcluded(at: location) else { return hit }
+        // Trackpad scrolling can begin over a node. Pointer click-drags continue
+        // through the hosted view for selection and object dragging in this session.
+        if event?.type == .scroll {
+            return scrollController.scrollView
+        }
+        guard event?.type == .touches,
+              event?.buttonMask.isEmpty != false,
+              event?.allTouches?.contains(where: { $0.type == .indirectPointer }) != true,
+              !canvas.interactionHasContent(at: location) else { return hit }
+        return scrollController.scrollView
+    }
     
     // MARK: - Gestures
     
@@ -210,10 +261,9 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         guard gestureRecognizer == pinchGestureRecognizer else {
             return super.gestureRecognizerShouldBegin(gestureRecognizer)
         }
-        /// A drag already under way owns its touches. A finger merely resting on
-        /// content does not, so a pinch starting over nodes still zooms, cancelling
-        /// any drag through `startZoom`.
-        guard !canvas.isInteractionDragging else { return false }
+        /// Native scrolling lets a pinch take over either kind of contact, even
+        /// after a pan or content drag begins. The legacy mode keeps its gate.
+        guard scrollController != nil || !canvas.isInteractionDragging else { return false }
         return canvas.delegate?.gestureCanvasAllowPinch(canvas) == true
     }
     
@@ -278,9 +328,10 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             break
         case .began:
             /// Permission is resolved in `gestureRecognizerShouldBegin(_:)`.
+            prepareForZoom()
             startZoom = Zoom(
                 location: location,
-                coordinate: canvas.coordinate.unlimited
+                coordinate: scrollController == nil ? canvas.coordinate.unlimited : canvas.coordinate.limited
             )
             if canvas.isPanning {
                 canvas.cancelPan()
@@ -322,9 +373,12 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             } else {
                 canvas.cancelZoom()
             }
-            Task {
-                await canvas.gestureEnded(at: lastLocation)
+            let sequence = zoomSequence
+            Task(name: "GestureCanvasInteractionUIView: Settle Pinch Zoom") { [weak self, canvas] in
+                let completed = await canvas.gestureEnded(at: lastLocation)
+                guard let self, zoomSequence == sequence else { return }
                 canvas.didEndZoom(at: lastLocation)
+                scrollController?.resumeAfterZoom(clamp: completed)
             }
         @unknown default:
             break
@@ -349,9 +403,10 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             // Content handles object hits, while zoom remains a canvas gesture.
             // The background permission callback may deliberately reject those hits.
             guard canvas.interactionDelegate != nil || canvas.allowInteraction(at: location) else { return }
+            prepareForZoom()
             startZoom = Zoom(
                 location: location,
-                coordinate: canvas.coordinate.unlimited
+                coordinate: scrollController == nil ? canvas.coordinate.unlimited : canvas.coordinate.limited
             )
             if canvas.isPanning {
                 canvas.cancelPan()
@@ -388,13 +443,24 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             } else {
                 canvas.cancelZoom()
             }
-            Task {
-                await canvas.gestureEnded(at: startZoom.location)
+            let sequence = zoomSequence
+            Task(name: "GestureCanvasInteractionUIView: Settle Double Tap Zoom") { [weak self, canvas] in
+                let completed = await canvas.gestureEnded(at: startZoom.location)
+                guard let self, zoomSequence == sequence else { return }
                 canvas.didEndZoom(at: startZoom.location)
+                scrollController?.resumeAfterZoom(clamp: completed)
             }
         @unknown default:
             break
         }
+    }
+
+    private func prepareForZoom() {
+        zoomSequence &+= 1
+        guard let scrollController else { return }
+        scrollController.suspendForZoom()
+        multiDragGestureRecognizer?.cancelForZoom()
+        startPan = nil
     }
     
     // MARK: - Hover

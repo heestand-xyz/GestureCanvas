@@ -26,7 +26,10 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                 .coordinateSpace(GestureCanvasCoordinate.space)
             }
 #else
-            GestureCanvasInteractionView(canvas: canvas) {
+            GestureCanvasInteractionView(
+                canvas: canvas,
+                scrollBounds: canvas.delegate?.gestureCanvasScrollBounds(canvas)
+            ) {
                 ZStack(alignment: .topLeading) {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
                     content()
