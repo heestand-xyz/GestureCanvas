@@ -214,7 +214,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
         }
         guard scrollView == nil, panTouch == nil, !canvas.isSelecting else { return .ignored }
         panTouch = key
-        panStartCoordinate = canvas.coordinate.unlimited
+        panStartCoordinate = canvas.gestureStartCoordinate
         canvas.startPan(at: track.startLocation)
         canvas.gestureStart()
         updatePan(track: track, at: location)
@@ -232,7 +232,9 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
     private func updatePan(track: Track, at location: CGPoint) {
         guard !canvas.isZooming, let panStartCoordinate else { return }
         let offset: CGPoint = location - track.startLocation
-        canvas.offset(to: panStartCoordinate.offset + offset)
+        canvas.gestureUpdate(to: GestureCanvasCoordinate(
+            offset: panStartCoordinate.offset + offset, scale: panStartCoordinate.scale
+        ), at: location)
         canvas.updatePan(at: location)
     }
 

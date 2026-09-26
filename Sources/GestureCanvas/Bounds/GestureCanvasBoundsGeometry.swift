@@ -1,11 +1,9 @@
-#if !os(macOS)
-
 import CoreGraphics
 
 /// The camera may center on any point inside the visible content rectangle.
 /// Half a viewport of padding on each side makes its edges reachable at the center,
 /// independently of the content's aspect ratio and the current zoom scale.
-struct GestureCanvasScrollGeometry: Equatable {
+struct GestureCanvasBoundsGeometry: Equatable {
     let contentSize: CGSize
     let cameraOrigin: CGPoint
 
@@ -53,5 +51,3 @@ struct GestureCanvasScrollGeometry: Equatable {
         return distance < 0 ? -resisted : resisted
     }
 }
-
-#endif

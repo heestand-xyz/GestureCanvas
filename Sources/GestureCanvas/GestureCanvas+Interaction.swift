@@ -53,6 +53,7 @@ extension GestureCanvas {
 #if !os(macOS)
         scrollController?.interactionEnded()
 #endif
+        boundsController?.settleAfterInteraction()
     }
 
     /// Ends one drag without committing its action, leaving any other drag running.
@@ -66,6 +67,7 @@ extension GestureCanvas {
 #if !os(macOS)
         scrollController?.interactionEnded()
 #endif
+        boundsController?.settleAfterInteraction()
     }
 
     /// Ends ownership of every current interaction without committing its action.
@@ -78,6 +80,7 @@ extension GestureCanvas {
         guard !isCancellingInteraction else { return }
         isCancellingInteraction = true
         defer { isCancellingInteraction = false }
+        boundsController?.cancelSettlement()
 #if !os(macOS)
         scrollController?.cancelScrolling()
 #endif

@@ -16,6 +16,9 @@ public class GestureCanvasTrackpadNSView: NSView {
         case zoom
     }
     private var scrollMethod: ScrollMethod?
+    private var panCoordinate: GestureCanvasCoordinate?
+    private var ignoresMomentum = false
+    private var inputSequence: UInt = 0
     private var scrollTimer: Timer?
     private let scrollTimeout: TimeInterval = 0.15
     private let scrollThreshold: CGFloat = 1.5
@@ -30,6 +33,13 @@ public class GestureCanvasTrackpadNSView: NSView {
     private let multiTapMaximumWaitTime: TimeInterval = 0.25
     
     private let contentView: NSView?
+
+    var viewportSize: CGSize { contentView?.bounds.size ?? bounds.size }
+
+    public override func layout() {
+        super.layout()
+        canvas.boundsController?.update(viewportSize: viewportSize)
+    }
     
     private var startCoordinate: GestureCanvasCoordinate?
     private var targetCoordinateScale: CGFloat?
@@ -185,8 +195,28 @@ public class GestureCanvasTrackpadNSView: NSView {
     public override func scrollWheel(with event: NSEvent) {
         guard canvas.trackpadEnabled else { return }
         guard !canvas.isMagnifying else { return }
-        if event.phase == .cancelled {
+        if event.phase == .began {
+            ignoresMomentum = false
+            if scrollMethod != nil { cancelScroll(settle: false) }
+        }
+        if ignoresMomentum, event.momentumPhase != [] { return }
+        if event.phase == .cancelled || event.momentumPhase == .cancelled {
             cancelScroll()
+            return
+        }
+        if event.momentumPhase == .ended {
+            didEndScroll()
+            return
+        }
+        if event.phase == .ended {
+            // Outside the bounds, release returns immediately. Inside them,
+            // leave time for AppKit's momentum sequence to take over.
+            if scrollMethod == .zoom || isOutsideBounds {
+                ignoresMomentum = true
+                didEndScroll()
+            } else {
+                scheduleScrollEnd()
+            }
             return
         }
         
@@ -198,17 +228,34 @@ public class GestureCanvasTrackpadNSView: NSView {
         
         let scrollMethod: ScrollMethod = canvas.keyboardFlags.contains(.command) || withScrollWheel ? .zoom : .pan
         
-        if scrollTimer == nil {
+        if self.scrollMethod == nil {
             guard max(abs(delta.dx), abs(delta.dy)) > scrollThreshold else { return }
             self.scrollMethod = scrollMethod
             didStartScroll(withScrollWheel: withScrollWheel)
         } else if let oldScrollMethod = self.scrollMethod, oldScrollMethod != scrollMethod {
-            didEndScroll()
+            cancelScroll(settle: false)
             self.scrollMethod = scrollMethod
             didStartScroll(withScrollWheel: withScrollWheel)
         }
         
         didScroll(by: delta)
+        scrollTimer?.invalidate()
+        scrollTimer = nil
+        if event.momentumPhase != [], isOutsideBounds {
+            ignoresMomentum = true
+            didEndScroll()
+        } else if event.phase == [], event.momentumPhase == [] {
+            // Traditional wheels have no begin/end phases.
+            scheduleScrollEnd()
+        }
+    }
+
+    private var isOutsideBounds: Bool {
+        guard let bounds = canvas.boundsController else { return false }
+        return bounds.limit(canvas.coordinate.limited, withTension: false) != canvas.coordinate.limited
+    }
+
+    private func scheduleScrollEnd() {
         scrollTimer?.invalidate()
         scrollTimer = Timer(timeInterval: scrollTimeout, repeats: false, block: { [weak self] _ in
             self?.scrollTimer = nil
@@ -219,8 +266,11 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     private func didStartScroll(withScrollWheel: Bool) {
         guard let location: CGPoint = getMouseLocation() else { return }
-        startCoordinate = canvas.coordinate.unlimited
-        targetCoordinateScale = canvas.coordinate.unlimited.scale
+        inputSequence &+= 1
+        if canvas.isZooming { canvas.cancelZoom() }
+        startCoordinate = canvas.gestureStartCoordinate
+        panCoordinate = startCoordinate
+        targetCoordinateScale = startCoordinate?.scale
         canvas.isScrolling = true
         if scrollMethod == .zoom {
             canvas.startZoom(at: location)
@@ -258,24 +308,28 @@ public class GestureCanvasTrackpadNSView: NSView {
             canvas.updateZoom(at: location)
             self.targetCoordinateScale = scale
         } else {
-            var coordinate = canvas.coordinate.unlimited
+            guard var coordinate = panCoordinate else { return }
             coordinate.offset += velocity.asPoint
+            panCoordinate = coordinate
             canvas.gestureUpdate(to: coordinate, at: location)
             canvas.updatePan(at: location)
         }
     }
     
-    private func cancelScroll() {
+    private func cancelScroll(settle: Bool = true) {
         scrollTimer?.invalidate()
         scrollTimer = nil
-        didEndScroll(cancelled: true)
+        didEndScroll(cancelled: true, settle: settle)
     }
     
-    private func didEndScroll(cancelled: Bool = false) {
+    private func didEndScroll(cancelled: Bool = false, settle: Bool = true) {
         guard let endedScrollMethod = scrollMethod else { return }
         guard let location: CGPoint = getMouseLocation() else { return }
+        scrollTimer?.invalidate()
+        scrollTimer = nil
         scrollMethod = nil
         startCoordinate = nil
+        panCoordinate = nil
         canvas.isScrolling = false
         if endedScrollMethod == .zoom {
             if cancelled {
@@ -284,13 +338,19 @@ public class GestureCanvasTrackpadNSView: NSView {
                 canvas.willEndZoom(at: location)
             }
         } else {
-            canvas.endPan(at: location)
-        }
-        Task {
-            await canvas.gestureEnded(at: location)
-            if endedScrollMethod == .zoom {
-                canvas.didEndZoom(at: location)
+            if settle {
+                canvas.endPan(at: location)
+            } else {
+                canvas.cancelPan()
             }
+        }
+        guard settle, endedScrollMethod == .zoom else { return }
+        let sequence = inputSequence
+        let gestureSequence = canvas.gestureSequence
+        Task(name: "GestureCanvasTrackpadNSView: Settle Scroll Zoom") { [weak self, canvas] in
+            await canvas.gestureEnded(at: location, sequence: gestureSequence)
+            guard self?.inputSequence == sequence else { return }
+            canvas.didEndZoom(at: location)
         }
     }
     
@@ -305,10 +365,12 @@ public class GestureCanvasTrackpadNSView: NSView {
         switch event.phase {
         case .began:
             if canvas.isScrolling {
-                cancelScroll()
+                cancelScroll(settle: false)
             }
             guard startCoordinate == nil else { return }
-            startCoordinate = canvas.coordinate.unlimited
+            inputSequence &+= 1
+            ignoresMomentum = true
+            startCoordinate = canvas.gestureStartCoordinate
             magnification = 1.0
             canvas.isMagnifying = true
             canvas.startZoom(at: location)
@@ -342,8 +404,11 @@ public class GestureCanvasTrackpadNSView: NSView {
             } else {
                 canvas.cancelZoom()
             }
-            Task {
-                await canvas.gestureEnded(at: location)
+            let sequence = inputSequence
+            let gestureSequence = canvas.gestureSequence
+            Task(name: "GestureCanvasTrackpadNSView: Settle Magnification") { [weak self, canvas] in
+                await canvas.gestureEnded(at: location, sequence: gestureSequence)
+                guard self?.inputSequence == sequence else { return }
                 canvas.didEndZoom(at: location)
             }
         default:
@@ -355,6 +420,10 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     public override func rightMouseDown(with event: NSEvent) {
         guard let location = getMouseLocation() else { return }
+        if canvas.isScrolling { cancelScroll(settle: false) }
+        inputSequence &+= 1
+        ignoresMomentum = true
+        if canvas.isZooming { canvas.cancelZoom() }
         canvas.dragSecondaryStarted(at: location)
         canvas.startPan(at: location)
     }

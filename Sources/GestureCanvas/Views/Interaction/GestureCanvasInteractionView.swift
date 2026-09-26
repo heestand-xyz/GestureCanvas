@@ -13,7 +13,8 @@ import UIKit
 struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     
     let canvas: GestureCanvas
-    let scrollBounds: CGRect?
+    let contentBounds: CGRect?
+    let usesNativeScrolling: Bool
     let content: () -> Content
     
     func makeUIView(context: Context) -> GestureCanvasInteractionUIView {
@@ -22,14 +23,16 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
         let contentView: UIView = hostingController.view
         contentView.backgroundColor = .clear
         let view = GestureCanvasInteractionUIView(canvas: canvas, contentView: contentView)
-        view.updateScrollBounds(scrollBounds)
+        canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
+        view.updateScrollBounds(usesNativeScrolling ? contentBounds : nil)
         return view
     }
     
     func updateUIView(_ interactionView: GestureCanvasInteractionUIView, context: Context) {
         context.coordinator.content = content
         context.coordinator.refresh()
-        interactionView.updateScrollBounds(scrollBounds)
+        canvas.updateBounds(contentBounds, viewportSize: interactionView.contentView.bounds.size)
+        interactionView.updateScrollBounds(usesNativeScrolling ? contentBounds : nil)
     }
     
     func makeCoordinator() -> Coordinator {

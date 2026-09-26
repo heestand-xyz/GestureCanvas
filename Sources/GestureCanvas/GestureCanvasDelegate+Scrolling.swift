@@ -1,11 +1,11 @@
-#if !os(macOS)
-
 import CoreGraphics
 
 public extension GestureCanvasDelegate {
-    func gestureCanvasScrollBounds(_ canvas: GestureCanvas) -> CGRect? { nil }
+    func gestureCanvasBounds(_ canvas: GestureCanvas) -> CGRect? { nil }
 
-    func gestureCanvasWillSettleScrollBounds(_ canvas: GestureCanvas) async {}
-}
+    func gestureCanvasWillSettleBounds(_ canvas: GestureCanvas) async {}
 
+#if !os(macOS)
+    func gestureCanvasUsesNativeScrolling(_ canvas: GestureCanvas) -> Bool { false }
 #endif
+}

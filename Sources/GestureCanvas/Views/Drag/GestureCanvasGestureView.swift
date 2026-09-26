@@ -151,14 +151,16 @@ public struct GestureCanvasGestureView: View {
                 if canvas.isSelecting { return }
                 canvas.startPan(at: startLocation)
             }
-            startCoordinate = canvas.coordinate.unlimited
+            startCoordinate = canvas.gestureStartCoordinate
         }
         if asSelection {
             canvas.dragSelectionUpdated(at: location)
         } else {
             if canvas.isZooming { return }
             if canvas.isSelecting { return }
-            canvas.offset(to: startCoordinate!.offset + value.translation)
+            canvas.gestureUpdate(to: GestureCanvasCoordinate(
+                offset: startCoordinate!.offset + value.translation, scale: startCoordinate!.scale
+            ), at: location)
             canvas.updatePan(at: location)
         }
     }

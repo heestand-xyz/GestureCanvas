@@ -7,18 +7,22 @@ import CoreGraphicsExtensions
 struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     
     let canvas: GestureCanvas
+    let contentBounds: CGRect?
     let content: () -> Content
     
     func makeNSView(context: Context) -> GestureCanvasTrackpadNSView {
         let hostingController = NSHostingController(rootView: content())
         context.coordinator.hostingController = hostingController
         let contentView: NSView = hostingController.view
-        return GestureCanvasTrackpadNSView(canvas: canvas, contentView: contentView)
+        let view = GestureCanvasTrackpadNSView(canvas: canvas, contentView: contentView)
+        canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
+        return view
     }
     
     func updateNSView(_ trackpadView: GestureCanvasTrackpadNSView, context: Context) {
         context.coordinator.content = content
         context.coordinator.refresh()
+        canvas.updateBounds(contentBounds, viewportSize: trackpadView.viewportSize)
     }
     
     func makeCoordinator() -> Coordinator {

@@ -41,13 +41,16 @@ public protocol GestureCanvasDelegate: AnyObject {
 
     func gestureCanvasAllowPinch(_ canvas: GestureCanvas) -> Bool
 
-    /// Visible content bounds in canvas coordinates. Returning nil keeps legacy panning.
-    /// Native scrolling pads these bounds by half the viewport on every side.
-    func gestureCanvasScrollBounds(_ canvas: GestureCanvas) -> CGRect?
+    /// Native scrolling requires non-nil gestureCanvasBounds.
+    func gestureCanvasUsesNativeScrolling(_ canvas: GestureCanvas) -> Bool
+#endif
+
+    /// Visible content bounds in canvas coordinates, padded by half the viewport.
+    /// Nil leaves camera position unrestricted on every platform.
+    func gestureCanvasBounds(_ canvas: GestureCanvas) -> CGRect?
 
     /// Await any asynchronous drop commit before the camera returns to scroll bounds.
-    func gestureCanvasWillSettleScrollBounds(_ canvas: GestureCanvas) async
-#endif
+    func gestureCanvasWillSettleBounds(_ canvas: GestureCanvas) async
     
     func gestureCanvasDidStartPan(_ canvas: GestureCanvas, at location: CGPoint)
     func gestureCanvasDidUpdatePan(_ canvas: GestureCanvas, at location: CGPoint)
@@ -130,12 +133,15 @@ public final class GestureCanvas: Sendable {
     weak var scrollController: GestureCanvasScrollController?
 #endif
     
+    @ObservationIgnored
+    var boundsController: GestureCanvasBoundsController?
+    @ObservationIgnored
+    private(set) var gestureSequence: UInt = 0
+
     private var currentCoordinate: GestureCanvasCoordinate {
-#if !os(macOS)
-        if scrollController != nil {
+        if boundsController != nil {
             return coordinate.limited
         }
-#endif
         if limitsZoom {
             return coordinate.limited
         } else {
@@ -164,6 +170,7 @@ public final class GestureCanvas: Sendable {
     public private(set) var isPanning: Bool = false
     
     func startPan(at location: CGPoint) {
+        gestureStart()
 #if os(macOS)
         setToolTip(nil)
 #endif
@@ -181,6 +188,7 @@ public final class GestureCanvas: Sendable {
         guard isPanning else { return }
         isPanning = false
         delegate?.gestureCanvasDidEndPan(self, at: location)
+        boundsController?.settleAfterInteraction()
     }
     
     func cancelPan() {
@@ -309,9 +317,7 @@ extension GestureCanvas {
     }
     
     public func move(to coordinate: GestureCanvasCoordinate) {
-        if isAnimating {
-            cancelMoveAnimation()
-        }
+        gestureStart()
         if limitsZoom {
             self.coordinate = .unlimited(hardLimitZoom(coordinate: coordinate))
         } else {
@@ -320,22 +326,22 @@ extension GestureCanvas {
     }
     
     internal func gestureStart() {
+        gestureSequence &+= 1
+        boundsController?.cancelSettlement()
         if isAnimating {
             cancelMoveAnimation()
         }
     }
     
     internal func gestureUpdate(to coordinate: GestureCanvasCoordinate, at location: CGPoint) {
-#if !os(macOS)
-        if let scrollController {
+        if let boundsController {
             let zoomLimited = limitsZoom ? softLimitZoom(coordinate: coordinate, at: location) : coordinate
             self.coordinate = .limited(
-                scrollController.limit(zoomLimited, withTension: true),
+                boundsController.limit(zoomLimited, withTension: true),
                 unlimited: coordinate
             )
             return
         }
-#endif
         if limitsZoom {
             let limitedCoordinate: GestureCanvasCoordinate = softLimitZoom(
                 coordinate: coordinate,
@@ -351,28 +357,28 @@ extension GestureCanvas {
     }
     
     @discardableResult
-    internal func gestureEnded(at location: CGPoint) async -> Bool {
-#if !os(macOS)
-        if let scrollController {
+    internal func gestureEnded(at location: CGPoint, sequence: UInt) async -> Bool {
+        guard gestureSequence == sequence else { return false }
+        if let boundsController {
+            await delegate?.gestureCanvasWillSettleBounds(self)
+            guard gestureSequence == sequence, !Task.isCancelled else { return false }
+            boundsController.refreshBounds()
             let zoomLimited = limitsZoom
                 ? hardLimitZoom(coordinate: coordinate.unlimited, at: location)
                 : coordinate.unlimited
-            let target = scrollController.limit(zoomLimited, withTension: false)
+            let target = boundsController.limit(zoomLimited, withTension: false)
             if coordinate.limited != target {
-                return await animate(to: target)
+                return await animateGesture(to: target, sequence: sequence)
             }
             coordinate = .unlimited(target)
             return true
         }
-#endif
         if limitsZoom, zoomNeedsLimit(coordinate.unlimited) {
             let hardLimitedCoordinate: GestureCanvasCoordinate = hardLimitZoom(
                 coordinate: coordinate.unlimited,
                 at: location
             )
-            return await animate(
-                to: hardLimitedCoordinate
-            )
+            return await animateGesture(to: hardLimitedCoordinate, sequence: sequence)
         }
         return true
     }
@@ -381,6 +387,13 @@ extension GestureCanvas {
     public func animate(
         to coordinate: GestureCanvasCoordinate
     ) async -> Bool {
+        gestureStart()
+        return await animateGesture(to: coordinate, sequence: gestureSequence)
+    }
+
+    @discardableResult
+    func animateGesture(to coordinate: GestureCanvasCoordinate, sequence: UInt) async -> Bool {
+        guard gestureSequence == sequence else { return false }
         let targetCoordinate: GestureCanvasCoordinate = if limitsZoom {
             hardLimitZoom(coordinate: coordinate)
         } else {
@@ -423,7 +436,7 @@ extension GestureCanvas {
         }
     }
     
-    private func cancelMoveAnimation() {
+    func cancelMoveAnimation() {
         moveAnimator?.cancel()
         moveAnimator = nil
     }
@@ -516,8 +529,9 @@ extension GestureCanvas {
 extension GestureCanvas {
     
     func dragSecondaryStarted(at location: CGPoint) {
+        gestureStart()
         secondaryDragStartLocation = location
-        secondaryDragStartCoordinate = coordinate.unlimited
+        secondaryDragStartCoordinate = gestureStartCoordinate
     }
     
     func dragSecondaryUpdated(at location: CGPoint) {
@@ -525,7 +539,7 @@ extension GestureCanvas {
         guard var coordinate: GestureCanvasCoordinate = secondaryDragStartCoordinate else { return }
         let offset: CGPoint = location - startLocation
         coordinate.offset += offset
-        move(to: coordinate)
+        gestureUpdate(to: coordinate, at: location)
     }
     
     enum SecondaryEndAction {

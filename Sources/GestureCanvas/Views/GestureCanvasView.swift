@@ -18,7 +18,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
     public var body: some View {
         ZStack(alignment: .topLeading) {
 #if os(macOS)
-            GestureCanvasTrackpadView(canvas: canvas) {
+            GestureCanvasTrackpadView(canvas: canvas, contentBounds: canvas.delegate?.gestureCanvasBounds(canvas)) {
                 ZStack(alignment: .topLeading) {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
                     content()
@@ -28,7 +28,8 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
 #else
             GestureCanvasInteractionView(
                 canvas: canvas,
-                scrollBounds: canvas.delegate?.gestureCanvasScrollBounds(canvas)
+                contentBounds: canvas.delegate?.gestureCanvasBounds(canvas),
+                usesNativeScrolling: canvas.delegate?.gestureCanvasUsesNativeScrolling(canvas) == true
             ) {
                 ZStack(alignment: .topLeading) {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))

@@ -5,10 +5,16 @@ content root. Locations are measured from that root, plus `zoomCoordinateOffset`
 do not subtract safe-area insets again. Each canvas owns its own coordinate space,
 including canvases in split views with different insets or section origins.
 
-On iOS and visionOS, a `GestureCanvasDelegate` can opt into native panning by
-returning the visible content rectangle from `gestureCanvasScrollBounds(_:)`.
-Bounds are in canvas coordinates; the default `nil` keeps the original gestures.
+A `GestureCanvasDelegate` can enable bounded panning and zooming on every platform
+by returning the visible content rectangle from `gestureCanvasBounds(_:)`.
+Bounds are in canvas coordinates; the default `nil` leaves position unrestricted.
 Keep the returned bounds observable so changes to the content update the view.
+The displayed camera resists movement beyond those bounds and animates back on
+release. Existing minimum/maximum zoom scales are independent of position bounds.
+
+On iOS and visionOS, `gestureCanvasUsesNativeScrolling(_:)` additionally opts into
+native panning (default `false`). It requires non-nil bounds. Without native
+scrolling, the existing touch and pointer gestures use the same bounds behavior.
 
 The native mode uses an empty `UIScrollView` beside the rendered content. At each
 zoom scale its content size is the scaled rectangle plus one viewport, giving
@@ -23,6 +29,12 @@ outside the bounds, and animate back on release. Native scrolling resumes after
 that animation. Touch and trackpad input remain available in the same session;
 pointer click-drags continue to use the existing selection/content gestures.
 macOS does not use this mode.
+
+On macOS, trackpad pan, magnification, wheel/Command-scroll zoom, and right-button
+panning share the bounds geometry and return animation. Scroll phases keep a
+stationary, held gesture active; phase-less wheels use an inactivity timeout.
+Momentum continues inside the bounds and yields to the return animation at an
+edge. New input cancels the old return and ignores its trailing momentum events.
 
 On iOS, `GestureCanvasKeyboardDelegate.gestureCanvasKeyCommands(_:)` supplies the
 native canvas responder's keyboard shortcuts, including character keys and all
@@ -44,7 +56,7 @@ This arbitration applies to touch contacts, not trackpad pinch events.
 Content edits rebase the scroll geometry without clamping the camera. In
 particular, shrinking the folder by dragging an outer node inward must not move
 the camera during the drop's final commit. The main delegate can await that commit
-in `gestureCanvasWillSettleScrollBounds(_:)` (a no-op by default). After release,
+in `gestureCanvasWillSettleBounds(_:)` (a no-op by default). After release,
 the viewport animates back if it is outside the updated bounds. New gestures
 cancel that return without changing the node's committed position.
 

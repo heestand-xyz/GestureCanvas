@@ -144,6 +144,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        canvas.boundsController?.update(viewportSize: contentView.bounds.size)
         scrollController?.layout(in: contentView.frame)
     }
 
@@ -298,7 +299,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             }
             startPan = Pan(
                 location: location,
-                coordinate: canvas.coordinate.unlimited
+                coordinate: canvas.gestureStartCoordinate
             )
             canvas.startPan(at: location)
             canvas.gestureStart()
@@ -312,10 +313,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         case .ended, .cancelled, .failed:
             guard startPan != nil else { return }
             startPan = nil
-            Task {
-                await canvas.gestureEnded(at: location)
-                canvas.endPan(at: location)
-            }
+            canvas.endPan(at: location)
         @unknown default:
             break
         }
@@ -331,7 +329,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             prepareForZoom()
             startZoom = Zoom(
                 location: location,
-                coordinate: scrollController == nil ? canvas.coordinate.unlimited : canvas.coordinate.limited
+                coordinate: canvas.gestureStartCoordinate
             )
             if canvas.isPanning {
                 canvas.cancelPan()
@@ -374,8 +372,9 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
                 canvas.cancelZoom()
             }
             let sequence = zoomSequence
+            let gestureSequence = canvas.gestureSequence
             Task(name: "GestureCanvasInteractionUIView: Settle Pinch Zoom") { [weak self, canvas] in
-                let completed = await canvas.gestureEnded(at: lastLocation)
+                let completed = await canvas.gestureEnded(at: lastLocation, sequence: gestureSequence)
                 guard let self, zoomSequence == sequence else { return }
                 canvas.didEndZoom(at: lastLocation)
                 scrollController?.resumeAfterZoom(clamp: completed)
@@ -406,7 +405,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             prepareForZoom()
             startZoom = Zoom(
                 location: location,
-                coordinate: scrollController == nil ? canvas.coordinate.unlimited : canvas.coordinate.limited
+                coordinate: canvas.gestureStartCoordinate
             )
             if canvas.isPanning {
                 canvas.cancelPan()
@@ -444,8 +443,9 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
                 canvas.cancelZoom()
             }
             let sequence = zoomSequence
+            let gestureSequence = canvas.gestureSequence
             Task(name: "GestureCanvasInteractionUIView: Settle Double Tap Zoom") { [weak self, canvas] in
-                let completed = await canvas.gestureEnded(at: startZoom.location)
+                let completed = await canvas.gestureEnded(at: startZoom.location, sequence: gestureSequence)
                 guard let self, zoomSequence == sequence else { return }
                 canvas.didEndZoom(at: startZoom.location)
                 scrollController?.resumeAfterZoom(clamp: completed)
