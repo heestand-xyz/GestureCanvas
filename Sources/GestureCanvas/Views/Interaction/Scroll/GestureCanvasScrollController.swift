@@ -16,6 +16,9 @@ final class GestureCanvasScrollController: NSObject {
     private var ownsPan = false
     private var lastPanLocation: CGPoint = .zero
     private(set) var isSuspended = false
+    private var settlementTask: Task<Void, Never>?
+    private var settlementSequence: UInt = 0
+    private var isSettlingBounds = false
 
     init(canvas: GestureCanvas, contentView: UIView, contentBounds: CGRect) {
         self.canvas = canvas
@@ -67,7 +70,11 @@ final class GestureCanvasScrollController: NSObject {
         // Updating a moving folder's extents must not rebase UIKit's active pan.
         guard !canvas.isInteractionDragging, !ownsPan else { return }
         guard needsBoundsLayout else { return }
-        synchronize(clamp: !canvas.isAnimating)
+        // A node drop can shrink the folder while its final move is still being
+        // committed asynchronously. Rebase the scroll geometry, never the camera:
+        // clamping here would move the released node or change its committed position.
+        // Settlement waits for the commit before animating the viewport back.
+        synchronize(clamp: false)
     }
 
     func coordinateChanged() {
@@ -81,6 +88,7 @@ final class GestureCanvasScrollController: NSObject {
     }
 
     func interactionBegan() {
+        cancelBoundsSettlement()
         // Stop a previous fling, but keep an explicitly held background pan alive.
         if scrollView.isDecelerating {
             cancelScrolling()
@@ -91,6 +99,7 @@ final class GestureCanvasScrollController: NSObject {
         guard !canvas.isInteractionDragging else { return }
         refreshBounds()
         scrollView.superview?.setNeedsLayout()
+        scheduleBoundsSettlement()
     }
 
     func suspendForZoom() {
@@ -108,6 +117,7 @@ final class GestureCanvasScrollController: NSObject {
         let limited = withTension
             ? geometry.rubberBanded(offset, viewportSize: size)
             : geometry.clamped(offset, viewportSize: size)
+        guard limited != offset else { return coordinate }
         return GestureCanvasCoordinate(offset: geometry.cameraOffset(for: limited), scale: coordinate.scale)
     }
 
@@ -120,6 +130,7 @@ final class GestureCanvasScrollController: NSObject {
     }
 
     func cancelScrolling() {
+        cancelBoundsSettlement()
         // Stopping a bounce can clamp UIKit's offset. Never publish that clamp to
         // the camera: a pinch must start at precisely the displayed coordinate.
         let wasSynchronizing = isSynchronizing
@@ -208,6 +219,46 @@ final class GestureCanvasScrollController: NSObject {
         canvas.endPan(at: lastPanLocation)
         refreshBounds()
         layout()
+        scheduleBoundsSettlement()
+    }
+
+    // MARK: - Bounds Settlement
+
+    private func cancelBoundsSettlement() {
+        settlementSequence &+= 1
+        settlementTask?.cancel()
+        settlementTask = nil
+        if isSettlingBounds {
+            isSettlingBounds = false
+            canvas.gestureStart()
+        }
+    }
+
+    private func scheduleBoundsSettlement() {
+        guard !isSuspended, !ownsPan, !canvas.isInteractionDragging else { return }
+        cancelBoundsSettlement()
+        let sequence = settlementSequence
+        let releasedCoordinate = canvas.coordinate.limited
+        settlementTask = Task(name: "GestureCanvasScrollController: Settle Released Viewport") { [weak self, canvas] in
+            await canvas.delegate?.gestureCanvasWillSettleScrollBounds(canvas)
+            guard let self, !Task.isCancelled, settlementSequence == sequence else { return }
+            defer {
+                if settlementSequence == sequence {
+                    isSettlingBounds = false
+                    settlementTask = nil
+                }
+            }
+            // A gesture, resize or navigation that happened while the drop was
+            // finishing owns the new camera position and must not be overridden.
+            guard !isSuspended, !ownsPan, !canvas.isInteractionDragging,
+                  !canvas.isAnimating, canvas.coordinate.limited == releasedCoordinate else { return }
+            refreshBounds()
+            synchronize(clamp: false)
+            let target = limit(releasedCoordinate, withTension: false)
+            guard target != releasedCoordinate else { return }
+            isSettlingBounds = true
+            await canvas.animate(to: target)
+        }
     }
 }
 
@@ -216,6 +267,7 @@ final class GestureCanvasScrollController: NSObject {
 extension GestureCanvasScrollController: UIScrollViewDelegate {
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         guard !isSuspended, !isSynchronizing else { return }
+        cancelBoundsSettlement()
         canvas.gestureStart()
         lastPanLocation = panLocation
         if !ownsPan {

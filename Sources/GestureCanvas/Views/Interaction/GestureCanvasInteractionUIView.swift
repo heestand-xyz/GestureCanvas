@@ -261,8 +261,8 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         guard gestureRecognizer == pinchGestureRecognizer else {
             return super.gestureRecognizerShouldBegin(gestureRecognizer)
         }
-        /// Native scrolling lets a pinch take over either kind of contact, even
-        /// after a pan or content drag begins. The legacy mode keeps its gate.
+        /// Native scrolling resolves independent contacts in shouldReceive. An
+        /// accepted pair may still take over a pan or drag; legacy keeps its gate.
         guard scrollController != nil || !canvas.isInteractionDragging else { return false }
         return canvas.delegate?.gestureCanvasAllowPinch(canvas) == true
     }
@@ -588,6 +588,13 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
 }
 
 extension GestureCanvasInteractionUIView: UIGestureRecognizerDelegate {
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer == pinchGestureRecognizer,
+              gestureRecognizer.state == .possible,
+              scrollController != nil else { return true }
+        return multiDragGestureRecognizer?.allowsPinch(toReceive: touch) ?? true
+    }
 
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,

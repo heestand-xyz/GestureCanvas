@@ -24,6 +24,20 @@ that animation. Touch and trackpad input remain available in the same session;
 pointer click-drags continue to use the existing selection/content gestures.
 macOS does not use this mode.
 
+Pinch may take over during the first 250 ms of a drag. After that, a content drag
+keeps its contact when another finger arrives; a held canvas pan also keeps its
+contact when the new finger lands on content. The new finger can independently
+drag a node/wire or scroll. The choice is made when that finger lands, so slowly
+pinching with an early pair still works. Two background fingers can always pinch.
+This arbitration applies to touch contacts, not trackpad pinch events.
+
+Content edits rebase the scroll geometry without clamping the camera. In
+particular, shrinking the folder by dragging an outer node inward must not move
+the camera during the drop's final commit. The main delegate can await that commit
+in `gestureCanvasWillSettleScrollBounds(_:)` (a no-op by default). After release,
+the viewport animates back if it is outside the updated bounds. New gestures
+cancel that return without changing the node's committed position.
+
 ```swift
 import SwiftUI
 import GestureCanvas

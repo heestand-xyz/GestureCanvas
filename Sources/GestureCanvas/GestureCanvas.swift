@@ -44,6 +44,9 @@ public protocol GestureCanvasDelegate: AnyObject {
     /// Visible content bounds in canvas coordinates. Returning nil keeps legacy panning.
     /// Native scrolling pads these bounds by half the viewport on every side.
     func gestureCanvasScrollBounds(_ canvas: GestureCanvas) -> CGRect?
+
+    /// Await any asynchronous drop commit before the camera returns to scroll bounds.
+    func gestureCanvasWillSettleScrollBounds(_ canvas: GestureCanvas) async
 #endif
     
     func gestureCanvasDidStartPan(_ canvas: GestureCanvas, at location: CGPoint)

@@ -18,6 +18,10 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
     /// Matches the movement a SwiftUI drag gesture needs before it starts.
     var dragThreshold: CGFloat = 10
 
+    /// A second contact can turn a just-started drag into a pinch. Later contacts
+    /// keep an established content drag, or add content to a held canvas pan.
+    private let pinchTakeoverInterval: TimeInterval = 0.25
+
     weak var scrollView: UIScrollView?
 
     private enum Mode {
@@ -27,6 +31,8 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
         case interaction
         /// Moving the canvas itself.
         case pan
+        /// Observing a contact owned by UIScrollView, without moving the camera here.
+        case nativeScroll
         /// Claimed by another gesture, or refused by its content.
         case ignored
     }
@@ -38,6 +44,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
         let startCanvasOffset: CGPoint
         let isContent: Bool
         var mode: Mode
+        var dragStartedAt: TimeInterval?
     }
 
     private let canvas: GestureCanvas
@@ -62,12 +69,20 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         for touch in touches where handles(touch) {
             let location = location(of: touch)
+            let mode: Mode
+            if canvas.isDragExcluded(at: location) {
+                mode = .ignored
+            } else if isScrollTouch(touch) {
+                mode = .nativeScroll
+            } else {
+                mode = .pending
+            }
             tracks[ObjectIdentifier(touch)] = Track(
                 dragID: GestureCanvasDragID(),
                 startLocation: location,
                 startCanvasOffset: canvas.coordinate.limited.offset,
                 isContent: canvas.interactionHasContent(at: location),
-                mode: canvas.isDragExcluded(at: location) || isScrollTouch(touch) ? .ignored : .pending
+                mode: mode
             )
         }
         canvas.ownsDirectTouches = !tracks.isEmpty
@@ -83,6 +98,9 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
                 let offset: CGPoint = location - track.startLocation
                 guard hypot(offset.x, offset.y) >= dragThreshold else { continue }
                 track.mode = begin(track: track, at: location, key: key)
+                if track.mode == .interaction || track.mode == .pan {
+                    track.dragStartedAt = touch.timestamp
+                }
                 tracks[key] = track
                 if track.mode != .ignored, state == .possible {
                     state = .began
@@ -93,6 +111,16 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
             case .pan:
                 updatePan(track: track, at: location)
                 state = .changed
+            case .nativeScroll:
+                // Do not recognize a second pan: only remember when this contact
+                // started moving so a later node/wire contact can stay independent.
+                if track.dragStartedAt == nil {
+                    let offset = location - track.startLocation
+                    if hypot(offset.x, offset.y) >= dragThreshold {
+                        track.dragStartedAt = touch.timestamp
+                        tracks[key] = track
+                    }
+                }
             case .ignored:
                 continue
             }
@@ -111,6 +139,33 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
         super.reset()
         // UIKit also resets after another gesture wins, with touches still tracked.
         releaseAllTracks()
+    }
+
+    /// Called before UIKit delivers a new contact to the pinch recognizer. Decide
+    /// on arrival, not at pinch recognition: an early pair may pinch slowly.
+    func allowsPinch(toReceive touch: UITouch) -> Bool {
+        guard let scrollView, handles(touch) else { return true }
+        let incomingKey = ObjectIdentifier(touch)
+        let incomingIsContent = canvas.interactionHasContent(at: location(of: touch))
+        for (key, track) in tracks where key != incomingKey {
+            guard let startedAt = track.dragStartedAt,
+                  touch.timestamp - startedAt >= pinchTakeoverInterval else { continue }
+            switch track.mode {
+            case .interaction:
+                if canvas.interactionDragIDs.contains(track.dragID) {
+                    return false
+                }
+            case .nativeScroll:
+                // Two background fingers can still pinch after a long pan.
+                // Deceleration without a held contact does not claim a new pair.
+                if scrollView.isDragging, incomingIsContent {
+                    return false
+                }
+            case .pending, .pan, .ignored:
+                break
+            }
+        }
+        return true
     }
 
     /// Keep the contacts ignored until release so the end of a pinch cannot
@@ -141,7 +196,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
                 canvas.cancelInteractionDrag(id: track.dragID)
             case .pan:
                 canvas.cancelPan()
-            case .pending, .ignored:
+            case .pending, .nativeScroll, .ignored:
                 break
             }
         }
@@ -203,7 +258,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
                 } else {
                     canvas.endPan(at: location)
                 }
-            case .pending, .ignored:
+            case .pending, .nativeScroll, .ignored:
                 break
             }
         }
