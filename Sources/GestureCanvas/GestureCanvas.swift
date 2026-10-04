@@ -166,6 +166,9 @@ public final class GestureCanvas: Sendable {
     }
     
     public internal(set) var size: CGSize = .one
+
+    /// Use empty-canvas primary drags for navigation rather than drag selection.
+    public var pansWithPrimaryDrag: Bool = false
     
     public private(set) var isPanning: Bool = false
     

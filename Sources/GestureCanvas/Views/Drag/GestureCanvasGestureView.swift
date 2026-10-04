@@ -136,12 +136,13 @@ public struct GestureCanvasGestureView: View {
                 return
             }
             asSelection = {
+                if canvas.pansWithPrimaryDrag { return false }
 #if os(macOS)
-                true
+                return true
 #elseif os(iOS)
-                canvas.isIndirectTouching
+                return canvas.isIndirectTouching
 #else
-                false
+                return false
 #endif
             }()
             if asSelection {
