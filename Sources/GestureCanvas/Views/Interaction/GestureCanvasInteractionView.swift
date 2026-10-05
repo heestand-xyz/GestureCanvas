@@ -15,12 +15,13 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     let canvas: GestureCanvas
     let contentBounds: CGRect?
     let usesNativeScrolling: Bool
+    let preservesContentAnimations: Bool
     let content: () -> Content
     
     func makeUIView(context: Context) -> GestureCanvasInteractionUIView {
-        let hostingController = UIHostingController(rootView: content())
-        context.coordinator.hostingController = hostingController
-        let contentView: UIView = hostingController.view
+        let contentView = context.coordinator.makeContentView(
+            content(), preservesAnimations: preservesContentAnimations
+        )
         contentView.backgroundColor = .clear
         let view = GestureCanvasInteractionUIView(canvas: canvas, contentView: contentView)
         canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
@@ -29,29 +30,39 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     }
     
     func updateUIView(_ interactionView: GestureCanvasInteractionUIView, context: Context) {
-        context.coordinator.content = content
-        context.coordinator.refresh()
+        context.coordinator.refresh(content(), transaction: context.transaction)
         canvas.updateBounds(contentBounds, viewportSize: interactionView.contentView.bounds.size)
         interactionView.updateScrollBounds(usesNativeScrolling ? contentBounds : nil)
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: content)
+        Coordinator()
     }
     
-    class Coordinator {
+    @MainActor
+    final class Coordinator {
 
-        var content: () -> Content
+        private var hostingController: UIHostingController<Content>?
+        private var animatedHostingController: UIHostingController<GestureCanvasHostingView<Content>>?
 
-        var hostingController: UIHostingController<Content>?
-
-        init(content: @escaping () -> Content) {
-            self.content = content
+        func makeContentView(_ content: Content, preservesAnimations: Bool) -> UIView {
+            if preservesAnimations {
+                let hostedContent = GestureCanvasHostedContent(view: content)
+                let controller = UIHostingController(rootView: GestureCanvasHostingView(content: hostedContent))
+                animatedHostingController = controller
+                return controller.view
+            }
+            let controller = UIHostingController(rootView: content)
+            hostingController = controller
+            return controller.view
         }
 
-        func refresh() {
-            // Needed to keep view models in sync with views.
-            hostingController?.rootView = content()
+        func refresh(_ content: Content, transaction: Transaction) {
+            if let animatedHostingController {
+                animatedHostingController.rootView.content.update(content, transaction: transaction)
+            } else {
+                hostingController?.rootView = content
+            }
         }
     }
 }

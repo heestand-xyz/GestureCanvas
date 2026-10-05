@@ -8,39 +8,51 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     
     let canvas: GestureCanvas
     let contentBounds: CGRect?
+    let preservesContentAnimations: Bool
     let content: () -> Content
     
     func makeNSView(context: Context) -> GestureCanvasTrackpadNSView {
-        let hostingController = NSHostingController(rootView: content())
-        context.coordinator.hostingController = hostingController
-        let contentView: NSView = hostingController.view
+        let contentView = context.coordinator.makeContentView(
+            content(), preservesAnimations: preservesContentAnimations
+        )
         let view = GestureCanvasTrackpadNSView(canvas: canvas, contentView: contentView)
         canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
         return view
     }
     
     func updateNSView(_ trackpadView: GestureCanvasTrackpadNSView, context: Context) {
-        context.coordinator.content = content
-        context.coordinator.refresh()
+        context.coordinator.refresh(content(), transaction: context.transaction)
         canvas.updateBounds(contentBounds, viewportSize: trackpadView.viewportSize)
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: content)
+        Coordinator()
     }
     
-    class Coordinator {
+    @MainActor
+    final class Coordinator {
 
-        var content: () -> Content
+        private var hostingController: NSHostingController<Content>?
+        private var animatedHostingController: NSHostingController<GestureCanvasHostingView<Content>>?
 
-        var hostingController: NSHostingController<Content>?
-
-        init(content: @escaping () -> Content) {
-            self.content = content
+        func makeContentView(_ content: Content, preservesAnimations: Bool) -> NSView {
+            if preservesAnimations {
+                let hostedContent = GestureCanvasHostedContent(view: content)
+                let controller = NSHostingController(rootView: GestureCanvasHostingView(content: hostedContent))
+                animatedHostingController = controller
+                return controller.view
+            }
+            let controller = NSHostingController(rootView: content)
+            hostingController = controller
+            return controller.view
         }
 
-        func refresh() {
-            hostingController?.rootView = content()
+        func refresh(_ content: Content, transaction: Transaction) {
+            if let animatedHostingController {
+                animatedHostingController.rootView.content.update(content, transaction: transaction)
+            } else {
+                hostingController?.rootView = content
+            }
         }
     }
 }
