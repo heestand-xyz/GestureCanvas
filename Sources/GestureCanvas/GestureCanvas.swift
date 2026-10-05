@@ -87,10 +87,30 @@ public final class GestureCanvas: Sendable {
         }
         didSet {
             routesInteractions = interactionDelegate != nil
+            tracksBackgroundPresses = interactionDelegate?.gestureCanvasTracksBackgroundPresses(self) == true
         }
     }
 
     var routesInteractions: Bool = false
+
+    var tracksBackgroundPresses = false
+    @ObservationIgnored
+    weak var backgroundPressObserver: (any GestureCanvasBackgroundPressObserver)?
+    /// True while any contact that began on the background remains held.
+    /// Requires the interaction delegate to opt in to background press tracking.
+    public private(set) var isPressingBackground = false
+
+    func updateBackgroundPress(_ isPressed: Bool) {
+        let isPressed = tracksBackgroundPresses && isPressed
+        guard isPressingBackground != isPressed else { return }
+        isPressingBackground = isPressed
+        interactionDelegate?.gestureCanvasBackgroundPressChanged(self, isPressed: isPressed)
+    }
+
+    func allowsBackgroundPress(at location: CGPoint) -> Bool {
+        tracksBackgroundPresses && !isDragExcluded(at: location)
+            && !interactionHasContent(at: location) && allowInteraction(at: location)
+    }
 
     @ObservationIgnored
     var dragExclusionPaths: [UUID: Path] = [:]
@@ -206,7 +226,7 @@ public final class GestureCanvas: Sendable {
 #if os(macOS)
         setToolTip(nil)
 #endif
-        cancelInteraction()
+        cancelInteraction(preservingBackgroundPresses: true)
         isZooming = true
         delegate?.gestureCanvasDidStartZoom(self, at: location)
     }

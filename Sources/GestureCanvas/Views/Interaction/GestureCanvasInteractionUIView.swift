@@ -61,6 +61,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     private var hoverGestureRecognizer: UIHoverGestureRecognizer?
     /// **Drag** per touch, for canvases that route interactions.
     private var multiDragGestureRecognizer: GestureCanvasMultiDragGestureRecognizer?
+    private var backgroundPressGestureRecognizer: GestureCanvasBackgroundPressGestureRecognizer?
 
     private var scrollController: GestureCanvasScrollController?
     private var zoomSequence: UInt = 0
@@ -171,6 +172,21 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
             panGestureRecognizer?.isEnabled = true
         }
         setNeedsLayout()
+    }
+
+    func updateBackgroundPressTracking(_ enabled: Bool) {
+        if enabled {
+            guard backgroundPressGestureRecognizer == nil else { return }
+            let recognizer = GestureCanvasBackgroundPressGestureRecognizer(canvas: canvas, contentView: contentView)
+            addGestureRecognizer(recognizer)
+            backgroundPressGestureRecognizer = recognizer
+            canvas.backgroundPressObserver = recognizer
+        } else if let recognizer = backgroundPressGestureRecognizer {
+            recognizer.cancelBackgroundPressTracking()
+            if canvas.backgroundPressObserver === recognizer { canvas.backgroundPressObserver = nil }
+            removeGestureRecognizer(recognizer)
+            backgroundPressGestureRecognizer = nil
+        }
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {

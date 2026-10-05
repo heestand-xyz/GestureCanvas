@@ -73,6 +73,11 @@ extension GestureCanvas {
     /// Ends ownership of every current interaction without committing its action.
     /// Call before replacing a canvas's content or its interaction delegate.
     public func cancelInteraction() {
+        cancelInteraction(preservingBackgroundPresses: false)
+    }
+
+    /// A zoom takes over editing without releasing physical background contacts.
+    func cancelInteraction(preservingBackgroundPresses: Bool) {
 #if os(macOS)
         tapKeyboardFlags = []
         setToolTip(nil)
@@ -80,6 +85,10 @@ extension GestureCanvas {
         guard !isCancellingInteraction else { return }
         isCancellingInteraction = true
         defer { isCancellingInteraction = false }
+        if !preservingBackgroundPresses {
+            backgroundPressObserver?.cancelBackgroundPressTracking()
+            updateBackgroundPress(false)
+        }
         boundsController?.cancelSettlement()
 #if !os(macOS)
         scrollController?.cancelScrolling()

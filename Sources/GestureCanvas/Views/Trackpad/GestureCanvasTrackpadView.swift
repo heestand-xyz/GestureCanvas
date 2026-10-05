@@ -8,6 +8,7 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     
     let canvas: GestureCanvas
     let contentBounds: CGRect?
+    let tracksBackgroundPresses: Bool
     let preservesContentAnimations: Bool
     let content: () -> Content
     
@@ -17,12 +18,14 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
         )
         let view = GestureCanvasTrackpadNSView(canvas: canvas, contentView: contentView)
         canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
+        view.updateBackgroundPressTracking(tracksBackgroundPresses)
         return view
     }
     
     func updateNSView(_ trackpadView: GestureCanvasTrackpadNSView, context: Context) {
         context.coordinator.refresh(content(), transaction: context.transaction)
         canvas.updateBounds(contentBounds, viewportSize: trackpadView.viewportSize)
+        trackpadView.updateBackgroundPressTracking(tracksBackgroundPresses)
     }
     
     func makeCoordinator() -> Coordinator {

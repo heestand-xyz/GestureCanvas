@@ -14,6 +14,9 @@ public protocol GestureCanvasInteractionDelegate: AnyObject {
     func gestureCanvas(_ canvas: GestureCanvas, contextAt location: CGPoint) -> Bool
     /// Asked on touch down, before any movement, to tell content touches from background touches.
     func gestureCanvas(_ canvas: GestureCanvas, hasContentAt location: CGPoint) -> Bool
+    /// Opt in to immediate background contact reporting, before a pan begins.
+    func gestureCanvasTracksBackgroundPresses(_ canvas: GestureCanvas) -> Bool
+    func gestureCanvasBackgroundPressChanged(_ canvas: GestureCanvas, isPressed: Bool)
     func gestureCanvas(_ canvas: GestureCanvas, beginDrag id: GestureCanvasDragID, at location: CGPoint) -> Bool
     func gestureCanvas(_ canvas: GestureCanvas, updateDrag id: GestureCanvasDragID, at location: CGPoint)
     func gestureCanvas(_ canvas: GestureCanvas, endDrag id: GestureCanvasDragID, at location: CGPoint)
@@ -23,6 +26,9 @@ public protocol GestureCanvasInteractionDelegate: AnyObject {
 }
 
 public extension GestureCanvasInteractionDelegate {
+    func gestureCanvasTracksBackgroundPresses(_ canvas: GestureCanvas) -> Bool { false }
+    func gestureCanvasBackgroundPressChanged(_ canvas: GestureCanvas, isPressed: Bool) {}
+
     func gestureCanvas(_ canvas: GestureCanvas, contextAt location: CGPoint) -> Bool {
         false
     }

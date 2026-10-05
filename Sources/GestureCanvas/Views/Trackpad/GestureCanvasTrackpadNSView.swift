@@ -4,7 +4,7 @@ import AppKit
 import SwiftUI
 import CoreGraphicsExtensions
 
-public class GestureCanvasTrackpadNSView: NSView {
+public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressObserver {
     
     private static let zoomScrollVelocityMultiplier: CGFloat = 0.0075
     private static let middleMouseScrollVelocityMultiplier: CGFloat = 10
@@ -49,6 +49,9 @@ public class GestureCanvasTrackpadNSView: NSView {
 
     private var inputMonitor: Any?
     private var magnifyMonitor: Any?
+    private var backgroundPressMonitor: Any?
+    private var isBackgroundMouseDown = false
+    private var backgroundTouches: [NSTouch] = []
 
     public init(canvas: GestureCanvas,
                 contentView: NSView?) {
@@ -109,6 +112,9 @@ public class GestureCanvasTrackpadNSView: NSView {
         if let magnifyMonitor {
             NSEvent.removeMonitor(magnifyMonitor)
         }
+        if let backgroundPressMonitor {
+            NSEvent.removeMonitor(backgroundPressMonitor)
+        }
 
         NotificationCenter.default.removeObserver(self)
 
@@ -133,6 +139,78 @@ public class GestureCanvasTrackpadNSView: NSView {
             canvas.cancelInteraction()
         }
         super.viewWillMove(toWindow: newWindow)
+    }
+
+    @objc private func applicationDidResignActive() {
+        cancelBackgroundPressTracking()
+    }
+
+    func updateBackgroundPressTracking(_ enabled: Bool) {
+        if enabled {
+            guard backgroundPressMonitor == nil else { return }
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(applicationDidResignActive),
+                name: NSApplication.didResignActiveNotification,
+                object: nil
+            )
+            backgroundPressMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseUp]) { [weak self] event in
+                self?.trackBackgroundMouse(with: event)
+                return event
+            }
+            canvas.backgroundPressObserver = self
+        } else if let backgroundPressMonitor {
+            NSEvent.removeMonitor(backgroundPressMonitor)
+            self.backgroundPressMonitor = nil
+            if canvas.backgroundPressObserver === self { canvas.backgroundPressObserver = nil }
+            NotificationCenter.default.removeObserver(self, name: NSApplication.didResignActiveNotification, object: nil)
+            cancelBackgroundPressTracking()
+        }
+    }
+
+    private func trackBackgroundMouse(with event: NSEvent) {
+        if event.type == .leftMouseDown {
+            guard let location = backgroundPressLocation(with: event),
+                  canvas.allowsBackgroundPress(at: location) else { return }
+            isBackgroundMouseDown = true
+        } else {
+            isBackgroundMouseDown = false
+        }
+        updateBackgroundPress()
+    }
+
+    private func backgroundPressLocation(with event: NSEvent) -> CGPoint? {
+        guard let window, event.window === window, let root = window.contentView else { return nil }
+        let target = contentView ?? self
+        let point = target.convert(event.locationInWindow, from: nil)
+        guard target.bounds.contains(point) else { return nil }
+        // The monitor sees every click in the window, including SwiftUI controls
+        // laid above this representable. Bounds alone would hide those controls
+        // before their action runs. NSView hitTest takes its superview's coordinates.
+        let hitPoint = root.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+        guard let hit = root.hitTest(hitPoint),
+              hit === self || hit === target || hit.isDescendant(of: target) else { return nil }
+        let location = CGPoint(x: point.x, y: target.isFlipped ? point.y : target.bounds.height - point.y)
+        return location + canvas.zoomCoordinateOffset
+    }
+
+    private func updateBackgroundPress() {
+        canvas.updateBackgroundPress(isBackgroundMouseDown || !backgroundTouches.isEmpty)
+    }
+
+    func cancelBackgroundPressTracking() {
+        isBackgroundMouseDown = false
+        backgroundTouches.removeAll()
+        canvas.updateBackgroundPress(false)
+    }
+
+    private func finishBackgroundTouches(with event: NSEvent, phase: NSTouch.Phase) {
+        guard canvas.tracksBackgroundPresses else { return }
+        let finished = event.touches(matching: phase, in: self)
+        backgroundTouches.removeAll { tracked in
+            finished.contains { tracked.identity.isEqual($0.identity) }
+        }
+        updateBackgroundPress()
     }
 
     public override func cancelOperation(_ sender: Any?) {
@@ -460,6 +538,13 @@ public class GestureCanvasTrackpadNSView: NSView {
     public override func touchesBegan(with event: NSEvent) {
         super.touchesBegan(with: event)
         let touches: Set<NSTouch> = event.touches(matching: .began, in: self)
+        if canvas.tracksBackgroundPresses,
+           let location = backgroundPressLocation(with: event), canvas.allowsBackgroundPress(at: location) {
+            for touch in touches where !backgroundTouches.contains(where: { $0.identity.isEqual(touch.identity) }) {
+                backgroundTouches.append(touch)
+            }
+            updateBackgroundPress()
+        }
         guard touches.count >= 2 else { return }
         guard touches.allSatisfy({ $0.type == .indirect }) else { return }
         multiTapTimer?.invalidate()
@@ -469,6 +554,7 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     public override func touchesEnded(with event: NSEvent) {
         super.touchesEnded(with: event)
+        finishBackgroundTouches(with: event, phase: .ended)
         guard let date: Date = multiTapBeganDate else { return }
         defer { multiTapBeganDate = nil }
         guard date.distance(to: .now) < multiTapMaximumDownTime else {
@@ -489,9 +575,10 @@ public class GestureCanvasTrackpadNSView: NSView {
     
     public override func touchesCancelled(with event: NSEvent) {
         super.touchesCancelled(with: event)
+        finishBackgroundTouches(with: event, phase: .cancelled)
         cancelMultiTap()
         if canvas.isInteractionDragging {
-            canvas.cancelInteraction()
+            canvas.cancelInteraction(preservingBackgroundPresses: true)
         }
     }
     

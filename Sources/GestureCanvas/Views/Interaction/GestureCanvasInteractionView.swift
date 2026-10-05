@@ -15,6 +15,7 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     let canvas: GestureCanvas
     let contentBounds: CGRect?
     let usesNativeScrolling: Bool
+    let tracksBackgroundPresses: Bool
     let preservesContentAnimations: Bool
     let content: () -> Content
     
@@ -26,6 +27,7 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
         let view = GestureCanvasInteractionUIView(canvas: canvas, contentView: contentView)
         canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
         view.updateScrollBounds(usesNativeScrolling ? contentBounds : nil)
+        view.updateBackgroundPressTracking(tracksBackgroundPresses)
         return view
     }
     
@@ -33,6 +35,7 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
         context.coordinator.refresh(content(), transaction: context.transaction)
         canvas.updateBounds(contentBounds, viewportSize: interactionView.contentView.bounds.size)
         interactionView.updateScrollBounds(usesNativeScrolling ? contentBounds : nil)
+        interactionView.updateBackgroundPressTracking(tracksBackgroundPresses)
     }
     
     func makeCoordinator() -> Coordinator {

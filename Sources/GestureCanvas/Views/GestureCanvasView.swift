@@ -26,6 +26,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
             GestureCanvasTrackpadView(
                 canvas: canvas,
                 contentBounds: canvas.delegate?.gestureCanvasBounds(canvas),
+                tracksBackgroundPresses: canvas.tracksBackgroundPresses,
                 preservesContentAnimations: preservesContentAnimations
             ) {
                 ZStack(alignment: .topLeading) {
@@ -40,6 +41,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                 canvas: canvas,
                 contentBounds: canvas.delegate?.gestureCanvasBounds(canvas),
                 usesNativeScrolling: canvas.delegate?.gestureCanvasUsesNativeScrolling(canvas) == true,
+                tracksBackgroundPresses: canvas.tracksBackgroundPresses,
                 preservesContentAnimations: preservesContentAnimations
             ) {
                 ZStack(alignment: .topLeading) {
