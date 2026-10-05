@@ -152,7 +152,7 @@ final class GestureCanvasMultiDragGestureRecognizer: UIGestureRecognizer {
                   touch.timestamp - startedAt >= pinchTakeoverInterval else { continue }
             switch track.mode {
             case .interaction:
-                if canvas.interactionDragIDs.contains(track.dragID) {
+                if canvas.interactionDragLocations[track.dragID] != nil {
                     return false
                 }
             case .nativeScroll:

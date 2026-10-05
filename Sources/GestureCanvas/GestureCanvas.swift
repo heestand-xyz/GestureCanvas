@@ -118,8 +118,10 @@ public final class GestureCanvas: Sendable {
     @ObservationIgnored
     weak var interactionDragDelegate: GestureCanvasInteractionDelegate?
     @ObservationIgnored
-    var interactionDragIDs: Set<GestureCanvasDragID> = []
-    var isInteractionDragging: Bool { !interactionDragIDs.isEmpty }
+    var interactionDragLocations: [GestureCanvasDragID: CGPoint] = [:]
+    var isInteractionDragging: Bool { !interactionDragLocations.isEmpty }
+    @ObservationIgnored
+    var isUpdatingInteractionDrags: Bool = false
     @ObservationIgnored
     var isCancellingInteraction: Bool = false
 
@@ -142,6 +144,9 @@ public final class GestureCanvas: Sendable {
     public private(set) var coordinate: GestureCanvasDynamicCoordinate {
         didSet {
             delegate?.gestureCanvasChanged(self, coordinate: coordinate)
+            if coordinate.limited != oldValue.limited {
+                updateInteractionDragsForCoordinateChange()
+            }
 #if !os(macOS)
             scrollController?.coordinateChanged()
 #endif

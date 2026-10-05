@@ -18,6 +18,8 @@ public protocol GestureCanvasInteractionDelegate: AnyObject {
     func gestureCanvasTracksBackgroundPresses(_ canvas: GestureCanvas) -> Bool
     func gestureCanvasBackgroundPressChanged(_ canvas: GestureCanvas, isPressed: Bool)
     func gestureCanvas(_ canvas: GestureCanvas, beginDrag id: GestureCanvasDragID, at location: CGPoint) -> Bool
+    /// Called when the pointer moves or the canvas coordinate changes during a drag.
+    /// A stationary pointer keeps its last view-space location as the canvas pans.
     func gestureCanvas(_ canvas: GestureCanvas, updateDrag id: GestureCanvasDragID, at location: CGPoint)
     func gestureCanvas(_ canvas: GestureCanvas, endDrag id: GestureCanvasDragID, at location: CGPoint)
     func gestureCanvas(_ canvas: GestureCanvas, cancelDrag id: GestureCanvasDragID)

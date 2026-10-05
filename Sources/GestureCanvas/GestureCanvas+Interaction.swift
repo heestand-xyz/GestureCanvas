@@ -30,7 +30,7 @@ extension GestureCanvas {
               let interactionDelegate,
               interactionDelegate.gestureCanvas(self, beginDrag: id, at: location) else { return false }
         interactionDragDelegate = interactionDelegate
-        interactionDragIDs.insert(id)
+        interactionDragLocations[id] = location
 #if !os(macOS)
         scrollController?.interactionBegan()
 #endif
@@ -39,14 +39,27 @@ extension GestureCanvas {
     }
 
     func updateInteractionDrag(id: GestureCanvasDragID, at location: CGPoint) {
-        guard interactionDragIDs.contains(id) else { return }
+        guard interactionDragLocations[id] != nil else { return }
+        interactionDragLocations[id] = location
         interactionDragDelegate?.gestureCanvas(self, updateDrag: id, at: location)
     }
 
+    /// A held pointer stays in view space while panning changes its content position.
+    func updateInteractionDragsForCoordinateChange() {
+        guard isInteractionDragging, !isCancellingInteraction, !isUpdatingInteractionDrags else { return }
+        isUpdatingInteractionDrags = true
+        defer { isUpdatingInteractionDrags = false }
+        // A delegate can end another drag or change the camera during an update.
+        for id in Array(interactionDragLocations.keys) {
+            guard let location = interactionDragLocations[id] else { continue }
+            updateInteractionDrag(id: id, at: location)
+        }
+    }
+
     func endInteractionDrag(id: GestureCanvasDragID, at location: CGPoint) {
-        guard interactionDragIDs.remove(id) != nil else { return }
+        guard interactionDragLocations.removeValue(forKey: id) != nil else { return }
         let delegate = interactionDragDelegate
-        if interactionDragIDs.isEmpty {
+        if interactionDragLocations.isEmpty {
             interactionDragDelegate = nil
         }
         delegate?.gestureCanvas(self, endDrag: id, at: location)
@@ -58,9 +71,9 @@ extension GestureCanvas {
 
     /// Ends one drag without committing its action, leaving any other drag running.
     public func cancelInteractionDrag(id: GestureCanvasDragID) {
-        guard interactionDragIDs.remove(id) != nil else { return }
+        guard interactionDragLocations.removeValue(forKey: id) != nil else { return }
         let delegate = interactionDragDelegate
-        if interactionDragIDs.isEmpty {
+        if interactionDragLocations.isEmpty {
             interactionDragDelegate = nil
         }
         delegate?.gestureCanvas(self, cancelDrag: id)
@@ -94,7 +107,7 @@ extension GestureCanvas {
         scrollController?.cancelScrolling()
 #endif
         let delegate = interactionDragDelegate ?? interactionDelegate
-        interactionDragIDs.removeAll()
+        interactionDragLocations.removeAll()
         interactionDragDelegate = nil
         delegate?.gestureCanvasCancelInteraction(self)
         delegate?.gestureCanvas(self, hoverAt: nil)
