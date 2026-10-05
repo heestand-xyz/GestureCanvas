@@ -100,6 +100,23 @@ public final class GestureCanvas: Sendable {
     /// Requires the interaction delegate to opt in to background press tracking.
     public private(set) var isPressingBackground = false
 
+    /// Initial canvas-space positions of held content contacts, before drag recognition.
+    /// Uses the same opt-in tracking as background presses.
+    public internal(set) var contentPressLocations: [GestureCanvasDragID: CGPoint] = [:]
+
+    func beginContentPress(at location: CGPoint) -> GestureCanvasDragID? {
+        guard tracksBackgroundPresses, !isZooming, !isDragExcluded(at: location),
+              interactionHasContent(at: location), allowInteraction(at: location) else { return nil }
+        let id = GestureCanvasDragID()
+        contentPressLocations[id] = coordinate.limited.position(at: location)
+        return id
+    }
+
+    func endContentPress(_ id: GestureCanvasDragID?) {
+        guard let id else { return }
+        contentPressLocations.removeValue(forKey: id)
+    }
+
     func updateBackgroundPress(_ isPressed: Bool) {
         let isPressed = tracksBackgroundPresses && isPressed
         guard isPressingBackground != isPressed else { return }

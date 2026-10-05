@@ -51,6 +51,7 @@ public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressOb
     private var magnifyMonitor: Any?
     private var backgroundPressMonitor: Any?
     private var isBackgroundMouseDown = false
+    private var contentMousePressID: GestureCanvasDragID?
     private var backgroundTouches: [NSTouch] = []
 
     public init(canvas: GestureCanvas,
@@ -170,10 +171,12 @@ public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressOb
 
     private func trackBackgroundMouse(with event: NSEvent) {
         if event.type == .leftMouseDown {
-            guard let location = backgroundPressLocation(with: event),
-                  canvas.allowsBackgroundPress(at: location) else { return }
-            isBackgroundMouseDown = true
+            guard let location = backgroundPressLocation(with: event) else { return }
+            contentMousePressID = canvas.beginContentPress(at: location)
+            isBackgroundMouseDown = canvas.allowsBackgroundPress(at: location)
         } else {
+            canvas.endContentPress(contentMousePressID)
+            contentMousePressID = nil
             isBackgroundMouseDown = false
         }
         updateBackgroundPress()
@@ -199,6 +202,8 @@ public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressOb
     }
 
     func cancelBackgroundPressTracking() {
+        canvas.endContentPress(contentMousePressID)
+        contentMousePressID = nil
         isBackgroundMouseDown = false
         backgroundTouches.removeAll()
         canvas.updateBackgroundPress(false)

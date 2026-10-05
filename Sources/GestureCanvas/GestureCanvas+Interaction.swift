@@ -98,6 +98,7 @@ extension GestureCanvas {
         guard !isCancellingInteraction else { return }
         isCancellingInteraction = true
         defer { isCancellingInteraction = false }
+        contentPressLocations.removeAll()
         if !preservingBackgroundPresses {
             backgroundPressObserver?.cancelBackgroundPressTracking()
             updateBackgroundPress(false)

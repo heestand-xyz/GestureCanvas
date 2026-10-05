@@ -10,6 +10,7 @@ final class GestureCanvasBackgroundPressGestureRecognizer: UIGestureRecognizer, 
     private unowned let contentView: UIView
     private var backgroundTouches: Set<ObjectIdentifier> = []
     private var activeTouches: Set<ObjectIdentifier> = []
+    private var contentTouches: [ObjectIdentifier: GestureCanvasDragID] = [:]
 
     init(canvas: GestureCanvas, contentView: UIView) {
         self.canvas = canvas
@@ -28,8 +29,10 @@ final class GestureCanvasBackgroundPressGestureRecognizer: UIGestureRecognizer, 
             let id = ObjectIdentifier(touch)
             activeTouches.insert(id)
             let point = touch.location(in: contentView)
-            guard contentView.bounds.contains(point),
-                  canvas.allowsBackgroundPress(at: point + canvas.zoomCoordinateOffset) else { continue }
+            guard contentView.bounds.contains(point) else { continue }
+            let location = point + canvas.zoomCoordinateOffset
+            contentTouches[id] = canvas.beginContentPress(at: location)
+            guard canvas.allowsBackgroundPress(at: location) else { continue }
             backgroundTouches.insert(id)
         }
         canvas.updateBackgroundPress(!backgroundTouches.isEmpty)
@@ -51,6 +54,8 @@ final class GestureCanvasBackgroundPressGestureRecognizer: UIGestureRecognizer, 
     }
 
     func cancelBackgroundPressTracking() {
+        for id in contentTouches.values { canvas.endContentPress(id) }
+        contentTouches.removeAll()
         backgroundTouches.removeAll()
         activeTouches.removeAll()
         canvas.updateBackgroundPress(false)
@@ -59,6 +64,7 @@ final class GestureCanvasBackgroundPressGestureRecognizer: UIGestureRecognizer, 
     private func finish(_ touches: Set<UITouch>) {
         for touch in touches {
             let id = ObjectIdentifier(touch)
+            canvas.endContentPress(contentTouches.removeValue(forKey: id))
             backgroundTouches.remove(id)
             activeTouches.remove(id)
         }
