@@ -5,17 +5,22 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
     @Bindable var canvas: GestureCanvas
     
     let preservesContentAnimations: Bool
+    let ignoresSafeArea: Bool
     let gestureContent: (GestureCanvasGestureView) -> GestureContent
     let content: () -> Content
     
     /// Enable `preservesContentAnimations` to forward SwiftUI animation transactions
     /// through a stable hosted root. The default uses direct root-view updates.
+    /// Enable `ignoresSafeArea` to use the full native canvas bounds for hosted
+    /// content and interaction coordinates instead of the native safe area.
     public init(canvas: GestureCanvas,
                 preservesContentAnimations: Bool = false,
+                ignoresSafeArea: Bool = false,
                 @ViewBuilder gestureContent: @escaping (GestureCanvasGestureView) -> GestureContent = { $0 },
                 @ViewBuilder content: @escaping () -> Content) {
         self.canvas = canvas
         self.preservesContentAnimations = preservesContentAnimations
+        self.ignoresSafeArea = ignoresSafeArea
         self.gestureContent = gestureContent
         self.content = content
     }
@@ -27,7 +32,8 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                 canvas: canvas,
                 contentBounds: canvas.delegate?.gestureCanvasBounds(canvas),
                 tracksBackgroundPresses: canvas.tracksBackgroundPresses,
-                preservesContentAnimations: preservesContentAnimations
+                preservesContentAnimations: preservesContentAnimations,
+                ignoresSafeArea: ignoresSafeArea
             ) {
                 ZStack(alignment: .topLeading) {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
@@ -36,13 +42,15 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                 .coordinateSpace(GestureCanvasCoordinate.space)
             }
             .id(preservesContentAnimations)
+            .id(ignoresSafeArea)
 #else
             GestureCanvasInteractionView(
                 canvas: canvas,
                 contentBounds: canvas.delegate?.gestureCanvasBounds(canvas),
                 usesNativeScrolling: canvas.delegate?.gestureCanvasUsesNativeScrolling(canvas) == true,
                 tracksBackgroundPresses: canvas.tracksBackgroundPresses,
-                preservesContentAnimations: preservesContentAnimations
+                preservesContentAnimations: preservesContentAnimations,
+                ignoresSafeArea: ignoresSafeArea
             ) {
                 ZStack(alignment: .topLeading) {
                     gestureContent(GestureCanvasGestureView(canvas: canvas))
@@ -51,6 +59,7 @@ public struct GestureCanvasView<Content: View, GestureContent: View>: View {
                 .coordinateSpace(GestureCanvasCoordinate.space)
             }
             .id(preservesContentAnimations)
+            .id(ignoresSafeArea)
 #endif
         }
         .environment(canvas)

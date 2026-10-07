@@ -88,7 +88,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     
     // MARK: - Init -
 
-    public init(canvas: GestureCanvas, contentView: UIView) {
+    public init(canvas: GestureCanvas, contentView: UIView, ignoresSafeArea: Bool = false) {
     
         self.canvas = canvas
         self.contentView = contentView
@@ -96,7 +96,7 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
         super.init(frame: .zero)
         
         setup()
-        layout()
+        layout(ignoresSafeArea: ignoresSafeArea)
         addGestures()
         NotificationCenter.default.addObserver(
             self,
@@ -129,17 +129,17 @@ final class GestureCanvasInteractionUIView: UIView, GestureCanvasInteractionHost
     
     // MARK: - Layout
     
-    private func layout() {
+    private func layout(ignoresSafeArea: Bool) {
         
         contentView.translatesAutoresizingMaskIntoConstraints = false
         
         addSubview(contentView)
         
         NSLayoutConstraint.activate([
-            contentView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: safeAreaLayoutGuide.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
+            contentView.topAnchor.constraint(equalTo: ignoresSafeArea ? topAnchor : safeAreaLayoutGuide.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: ignoresSafeArea ? leadingAnchor : safeAreaLayoutGuide.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: ignoresSafeArea ? trailingAnchor : safeAreaLayoutGuide.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: ignoresSafeArea ? bottomAnchor : safeAreaLayoutGuide.bottomAnchor),
         ])
     }
 

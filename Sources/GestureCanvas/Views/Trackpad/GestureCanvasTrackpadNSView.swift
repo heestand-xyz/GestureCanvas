@@ -55,7 +55,8 @@ public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressOb
     private var backgroundTouches: [NSTouch] = []
 
     public init(canvas: GestureCanvas,
-                contentView: NSView?) {
+                contentView: NSView?,
+                ignoresSafeArea: Bool = false) {
         
         self.canvas = canvas
         
@@ -72,10 +73,10 @@ public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressOb
             contentView.translatesAutoresizingMaskIntoConstraints = false
             addSubview(contentView)
             NSLayoutConstraint.activate([
-                contentView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
-                contentView.leadingAnchor.constraint(equalTo: safeAreaLayoutGuide.leadingAnchor),
-                contentView.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor),
-                contentView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor),
+                contentView.topAnchor.constraint(equalTo: ignoresSafeArea ? topAnchor : safeAreaLayoutGuide.topAnchor),
+                contentView.leadingAnchor.constraint(equalTo: ignoresSafeArea ? leadingAnchor : safeAreaLayoutGuide.leadingAnchor),
+                contentView.trailingAnchor.constraint(equalTo: ignoresSafeArea ? trailingAnchor : safeAreaLayoutGuide.trailingAnchor),
+                contentView.bottomAnchor.constraint(equalTo: ignoresSafeArea ? bottomAnchor : safeAreaLayoutGuide.bottomAnchor),
             ])
         }
         

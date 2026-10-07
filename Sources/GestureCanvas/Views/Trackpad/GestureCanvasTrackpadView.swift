@@ -10,13 +10,15 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
     let contentBounds: CGRect?
     let tracksBackgroundPresses: Bool
     let preservesContentAnimations: Bool
+    let ignoresSafeArea: Bool
     let content: () -> Content
     
     func makeNSView(context: Context) -> GestureCanvasTrackpadNSView {
         let contentView = context.coordinator.makeContentView(
-            content(), preservesAnimations: preservesContentAnimations
+            content(), preservesAnimations: preservesContentAnimations, ignoresSafeArea: ignoresSafeArea
         )
-        let view = GestureCanvasTrackpadNSView(canvas: canvas, contentView: contentView)
+        let view = GestureCanvasTrackpadNSView(canvas: canvas, contentView: contentView,
+                                             ignoresSafeArea: ignoresSafeArea)
         canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
         view.updateBackgroundPressTracking(tracksBackgroundPresses)
         return view
@@ -38,14 +40,16 @@ struct GestureCanvasTrackpadView<Content: View>: NSViewRepresentable {
         private var hostingController: NSHostingController<Content>?
         private var animatedHostingController: NSHostingController<GestureCanvasHostingView<Content>>?
 
-        func makeContentView(_ content: Content, preservesAnimations: Bool) -> NSView {
+        func makeContentView(_ content: Content, preservesAnimations: Bool, ignoresSafeArea: Bool) -> NSView {
             if preservesAnimations {
                 let hostedContent = GestureCanvasHostedContent(view: content)
                 let controller = NSHostingController(rootView: GestureCanvasHostingView(content: hostedContent))
+                if ignoresSafeArea { controller.safeAreaRegions = [] }
                 animatedHostingController = controller
                 return controller.view
             }
             let controller = NSHostingController(rootView: content)
+            if ignoresSafeArea { controller.safeAreaRegions = [] }
             hostingController = controller
             return controller.view
         }

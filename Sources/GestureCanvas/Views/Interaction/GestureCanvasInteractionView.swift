@@ -17,14 +17,16 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
     let usesNativeScrolling: Bool
     let tracksBackgroundPresses: Bool
     let preservesContentAnimations: Bool
+    let ignoresSafeArea: Bool
     let content: () -> Content
     
     func makeUIView(context: Context) -> GestureCanvasInteractionUIView {
         let contentView = context.coordinator.makeContentView(
-            content(), preservesAnimations: preservesContentAnimations
+            content(), preservesAnimations: preservesContentAnimations, ignoresSafeArea: ignoresSafeArea
         )
         contentView.backgroundColor = .clear
-        let view = GestureCanvasInteractionUIView(canvas: canvas, contentView: contentView)
+        let view = GestureCanvasInteractionUIView(canvas: canvas, contentView: contentView,
+                                                ignoresSafeArea: ignoresSafeArea)
         canvas.updateBounds(contentBounds, viewportSize: contentView.bounds.size)
         view.updateScrollBounds(usesNativeScrolling ? contentBounds : nil)
         view.updateBackgroundPressTracking(tracksBackgroundPresses)
@@ -48,14 +50,16 @@ struct GestureCanvasInteractionView<Content: View>: UIViewRepresentable {
         private var hostingController: UIHostingController<Content>?
         private var animatedHostingController: UIHostingController<GestureCanvasHostingView<Content>>?
 
-        func makeContentView(_ content: Content, preservesAnimations: Bool) -> UIView {
+        func makeContentView(_ content: Content, preservesAnimations: Bool, ignoresSafeArea: Bool) -> UIView {
             if preservesAnimations {
                 let hostedContent = GestureCanvasHostedContent(view: content)
                 let controller = UIHostingController(rootView: GestureCanvasHostingView(content: hostedContent))
+                if ignoresSafeArea { controller.safeAreaRegions = [] }
                 animatedHostingController = controller
                 return controller.view
             }
             let controller = UIHostingController(rootView: content)
+            if ignoresSafeArea { controller.safeAreaRegions = [] }
             hostingController = controller
             return controller.view
         }
