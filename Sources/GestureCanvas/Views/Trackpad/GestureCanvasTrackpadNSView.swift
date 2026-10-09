@@ -199,7 +199,7 @@ public class GestureCanvasTrackpadNSView: NSView, GestureCanvasBackgroundPressOb
     }
 
     private func updateBackgroundPress() {
-        canvas.updateBackgroundPress(isBackgroundMouseDown || !backgroundTouches.isEmpty)
+        canvas.updateBackgroundPress(isBackgroundMouseDown/* || !backgroundTouches.isEmpty*/)
     }
 
     func cancelBackgroundPressTracking() {
